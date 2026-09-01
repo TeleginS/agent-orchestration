@@ -94,6 +94,70 @@ Adding the estimated orchestrator share, the whole run lands at roughly:
 
 Which is the number worth arguing about. See *Was it worth it* below.
 
+### Could it be cheaper? The same run on DeepSeek V4-Pro
+
+The pipeline is harness- and vendor-agnostic by construction, so the obvious question is
+what the same token counts cost elsewhere. Rates below are from
+[DeepSeek's official pricing docs](https://api-docs.deepseek.com/quick_start/pricing),
+checked 2026-09-02. Third-party pricing pages disagreed with the official card by about
+2x — check the source, not an aggregator.
+
+**DeepSeek V4-Pro, per MTok:**
+
+| | Off-peak | Peak |
+|---|---|---|
+| Input, cache hit | $0.022 | $0.044 |
+| Input, cache miss | $0.66 | $1.32 |
+| Output | $1.98 | $3.96 |
+
+Peak is 01:00–04:00 and 06:00–10:00 UTC, weekdays only. Everything else — including all
+weekend hours — is off-peak, at half.
+
+Applying the same measured tokens and the same 92/8 split:
+
+| Scenario | Subagents | Whole run |
+|---|---|---|
+| No cache, off-peak | $0.84 | **$1.30** |
+| 70% cache hits, off-peak | $0.39 | **$0.60** |
+| 90% cache hits, off-peak | $0.26 | **$0.40** |
+| No cache, peak | $1.68 | $2.60 |
+
+Roughly **$1 against $10** — 5–15x cheaper, and the conclusion survives generous
+assumptions. Even if the model needed 1.5x the tokens to converge, the run lands at
+$0.90–1.95; at 2x it stays under $3.
+
+**Three things that comparison does not say.**
+
+*Token counts do not transfer between vendors.* The 1.1M figure is what these models
+needed. A different model takes a different number of turns, and different tokenizers give
+different counts for identical text (usually within ±20% on English and code). There is
+a concrete signal here: the ancestor of this repository shipped a DeepSeek harness
+adapter whose runbook records one deliberate divergence — *"loop iterations: Claude Code,
+no limit; DSH, a 3-iteration guardrail per loop"*. The cap was added on the DeepSeek side.
+That is circumstantial evidence that its loops converged less readily and had to be
+constrained. If so, extra turns eat into the saving — though, per the arithmetic above,
+not the saving itself.
+
+*Peak windows are a lever Claude does not have.* This run took 1h 31m. Landing entirely
+inside a weekday peak window doubles the bill; moving it to a weekend or a non-peak hour
+halves it back, for free.
+
+*Benchmarks do not settle the question this pipeline turns on.* V4-Pro posts strong
+agentic-coding numbers — SWE-Bench Verified ~91.2%, Terminal Bench 2.1 87.9%,
+LiveCodeBench 93.5%. But the moment that justified this run's cost was QA noticing that an
+assertion had quietly become a tautology *under contamination that had occurred an hour
+earlier in the same run*. That is connecting two non-adjacent observations and then
+distrusting a green test — not a benchmark task. Nothing in those scores predicts it
+either way.
+
+**The practical read:** cost is probably not the deciding variable. The gap between $1 and
+$10 matters across hundreds of runs; across dozens it is noise next to one missed bug.
+The thing actually worth measuring is whether the loops converge in the same number of
+iterations. If review and QA need three passes instead of one, you pay not in tokens but
+in the guardrail firing and escalating to a human — which costs more than any rate
+difference. The [generic-harness adapter](../../adapters/generic-harness/) already exists,
+so testing that is one dry-run on the same task.
+
 ## What the pipeline found
 
 Nothing here was planted. All of it came out of agents doing their assigned step.
