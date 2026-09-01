@@ -1,0 +1,7 @@
+# The active profile is project-specific. Commit it in the adopting project, not here.
+profiles/active.md
+
+# Dry-run output
+run-plans/
+
+.DS_Store

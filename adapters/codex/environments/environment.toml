@@ -1,0 +1,7 @@
+version = 1
+name = "<PROJECT NAME>"
+
+[setup]
+# Commands the agents need before they can build or test — toolchain selection,
+# dependency install, environment variables. Leave empty if none.
+script = ""
