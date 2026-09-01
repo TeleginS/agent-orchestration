@@ -13,7 +13,11 @@ Where something is reconstructed rather than copied, the file says so at the top
 ## Contents
 
 - **[run-cumulative-stats/](run-cumulative-stats/)** — one complete run through all
-  eleven steps, including the bug-fix loop. Start here.
+  eleven steps, including the bug-fix loop, with the artifacts the pipeline wrote. Start
+  here to see what it produces.
+- **[run-progress-store-tests/](run-progress-store-tests/)** — the first live run of
+  **this** version of the pipeline, with measured token counts, wall clock and a costed
+  estimate. Read this for what it costs and whether it was worth it.
 - **[artifacts/](artifacts/)** — the output contracts, indexed: what shape each role
   returns and why the orchestrator depends on it.
 
@@ -99,7 +103,13 @@ agent memory is for; see [`../memory/README.md`](../memory/README.md).
 It is one project, one team, one stack, one operator. The pipeline in this repository is
 also a **restructured** version of the one that produced these numbers — same flow and
 guardrails, rewritten prompts, and a profile indirection the original did not have. The
-outcomes above are evidence that the *design* works, not that this implementation of it
-reproduces them.
+outcomes above are evidence that the *design* works.
 
-Run it in dry-run first. See [`../PIPELINE.md`](../PIPELINE.md#dry-run-mode).
+That the restructured version also works is a separate claim, and it now has exactly one
+data point: [run-progress-store-tests](run-progress-store-tests/), where the profile seam
+and every guardrail behaved as designed on a real task — including QA blocking work the
+reviewer had approved, and the precedence rule catching three stale facts in the profile
+on its first outing.
+
+One run is not twenty. Run it in dry-run first. See
+[`../PIPELINE.md`](../PIPELINE.md#dry-run-mode).

@@ -52,10 +52,17 @@ stack, prompts with the project fused into them. What is published here is a
 restructuring — same flow, same guardrails, rewritten role prompts, and a profile
 indirection the original did not have.
 
-So the numbers are evidence that the *design* works. They are not a claim that this
-implementation of it reproduces them, and it has not yet been run end to end in this form.
-Point it at something real in [dry-run](PIPELINE.md#dry-run-mode) first — it touches
-neither your tracker nor your remote — and treat the first live run as a shakedown.
+The restructured version has now been run end to end **once**, on a real task in a real
+repository: [`examples/run-progress-store-tests/`](examples/run-progress-store-tests/).
+Every guardrail behaved as designed, the profile seam held, and the precedence rule caught
+three stale facts in the profile on its first outing. That run has measured token counts,
+wall clock and a costed estimate — **≈1.7M tokens, ~$10, 1.5 hours** for a task a
+competent engineer would scope at half a day. Whether that trade is worth it is argued
+honestly in the report rather than assumed.
+
+One run is not twenty. Point it at something real in
+[dry-run](PIPELINE.md#dry-run-mode) first — it touches neither your tracker nor your
+remote — and treat your first live run as a shakedown.
 
 ## Map
 
