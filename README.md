@@ -12,32 +12,60 @@ task → plan → branch → implement → review ⇄ fix → QA → fix ⇄ rev
                                     (×3 max)          (×3 max)
 ```
 
+## What 20 real runs look like
+
+Most published agent pipelines are a diagram and a promise. This one has outcomes.
+
+| | |
+|---|---|
+| Orchestrated runs | 20 |
+| Merged | 19 |
+| Closed without merging | 1 |
+| Runs where **review** sent work back | 2 |
+| Runs where **QA** filed bugs | 8 |
+| Times either loop hit its 3-iteration cap | 0 |
+
+The interesting number is the gap between the last two. Review sends work back 10% of the
+time; QA finds bugs 40% of the time — on code a reviewer just approved. That ratio is the
+entire argument for keeping them as separate steps, and for running QA second.
+
+Here is one of those eight, in full:
+
+> The reviewer read every terminal code path and proved a true statement — no path
+> double-counts session time — and approved. QA then found time being double-counted, via
+> a race between a countdown timer and a modal dialog that no reading of the diff could
+> reveal.
+
+Nobody was careless, and the approval was correct. **A reviewer reads the change; QA runs
+the program and asks what else can happen.** Merging the two steps — the obvious
+efficiency — deletes the one that catches this.
+
+[`examples/`](examples/) has that run end to end, with the artifacts the pipeline actually
+wrote: epic, child issues, PR, review comment, bug report, fix, re-review, re-test. Plus
+the two send-backs — one where the pipeline caught its own agents writing a deleted symbol
+back into the repository, and one that shipped nothing at all.
+
+### Status, stated plainly
+
+Those 20 runs were produced by the **ancestor** of this repository: one project, one
+stack, prompts with the project fused into them. What is published here is a
+restructuring — same flow, same guardrails, rewritten role prompts, and a profile
+indirection the original did not have.
+
+So the numbers are evidence that the *design* works. They are not a claim that this
+implementation of it reproduces them, and it has not yet been run end to end in this form.
+Point it at something real in [dry-run](PIPELINE.md#dry-run-mode) first — it touches
+neither your tracker nor your remote — and treat the first live run as a shakedown.
+
+## Map
+
+- **[examples/](examples/)** — a complete real run, and what 20 of them look like
 - **[PIPELINE.md](PIPELINE.md)** — the runbook: every step, its transition criterion,
   the strict rules
 - **[PIPELINE-GRAPH.md](PIPELINE-GRAPH.md)** — the same thing as a state diagram
-- **[examples/](examples/)** — a complete real run, and what 20 of them look like
 - **[agents/](agents/)** — the six role prompts
 - **[profiles/](profiles/)** — the one file you write to adopt this
 - **[adapters/](adapters/)** — Claude Code, Codex, generic harness
-
-## What it produces
-
-[`examples/run-cumulative-stats/`](examples/run-cumulative-stats/) walks one task through
-all eleven steps with the artifacts the pipeline actually wrote — epic, child issues, PR,
-review, bug report, fix, re-review, re-test.
-
-The run is worth reading for one moment in particular. The reviewer verified every
-terminal code path and proved a true statement — no path double-counts time — and
-approved. QA then found time being double-counted, via a race between a countdown and a
-modal dialog that no reading of the diff could reveal. A reviewer reads the change; QA
-runs the program and asks what else can happen. Merging those two steps, the obvious
-efficiency, deletes the one that catches this.
-
-Across 20 real runs: 18 clean first-pass approvals, QA filed bugs on 8, and neither loop
-ever reached its 3-iteration cap. The numbers and the two send-backs are in
-[`examples/README.md`](examples/README.md) — including a run where the pipeline caught
-its own agents writing a deleted symbol back into the repository, and one that shipped
-nothing at all.
 
 ## The idea
 
