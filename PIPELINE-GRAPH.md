@@ -3,8 +3,10 @@
 The state machine described in [PIPELINE.md](PIPELINE.md). Renders natively on GitHub;
 any mermaid viewer or `mmdc` will also do.
 
-> Syntax note: every state description is quoted (`state "..." as ID`). Bare colons in
-> the text break the mermaid parser.
+> Syntax notes, both learned the hard way: every state description is quoted
+> (`state "..." as ID`), because a bare colon inside the text breaks the parser — and
+> `stateDiagram-v2` has no dotted-arrow form. `-.->` is flowchart syntax; here it fails
+> with `Parse error ... got 'INVALID'`. Transitions are `-->` only.
 
 ```mermaid
 stateDiagram-v2
@@ -43,7 +45,7 @@ stateDiagram-v2
 
     S5 --> S7: QA green
     S5 --> S6: in-scope bugs found
-    S5 -.-> S10: pre-existing bugs, outside this cycle
+    S5 --> S10: pre-existing bugs — filed, never block
 
     state "Step 6 — bug-fix loop" as S6 {
         direction LR
@@ -66,9 +68,11 @@ stateDiagram-v2
 
 ## Legend
 
-- **Solid arrow** — the normal transition once the step's criterion is met.
-- **Dashed arrow** — flow outside the main cycle. Pre-existing bugs go straight to the
-  report; they are filed but never block this run.
+- **Every arrow is a transition** taken once the step's criterion is met. `stateDiagram-v2`
+  cannot style individual transitions, so the distinctions live in the labels.
+- **Step 5 → Step 10 directly** is the one edge that is not part of the main cycle:
+  pre-existing bugs are filed as issues and go straight to the final report, never
+  blocking the run.
 - **Nested states** — the two loops. Step 4 is reviewer ⇄ developer. Step 6 is
   fix → review → re-test, and the review in the middle is rule 11: no code reaches a
   green QA verdict unreviewed.
