@@ -40,10 +40,16 @@ Nobody was careless, and the approval was correct. **A reviewer reads the change
 the program and asks what else can happen.** Merging the two steps — the obvious
 efficiency — deletes the one that catches this.
 
-[`examples/`](examples/) has that run end to end, with the artifacts the pipeline actually
-wrote: epic, child issues, PR, review comment, bug report, fix, re-review, re-test. Plus
-the two send-backs — one where the pipeline caught its own agents writing a deleted symbol
-back into the repository, and one that shipped nothing at all.
+[`examples/run-cumulative-stats/`](examples/run-cumulative-stats/) has that run end to end,
+with the artifacts the pipeline actually wrote: epic, child issues, PR, review comment, bug
+report, fix, re-review, re-test. [`examples/`](examples/) also covers the two send-backs —
+one where the pipeline caught its own agents writing a deleted symbol back into the
+repository, and one that shipped nothing at all.
+
+For what a run **costs**, the measured numbers are in
+[`examples/run-progress-store-tests/`](examples/run-progress-store-tests/): 1,097,667
+subagent tokens across 9 launches, 302 tool calls, 1h 31m wall clock, broken down per step
+and per role — plus a costed estimate and an honest argument about whether it was worth it.
 
 ### Status, stated plainly
 
@@ -66,7 +72,12 @@ remote — and treat your first live run as a shakedown.
 
 ## Map
 
-- **[examples/](examples/)** — a complete real run, and what 20 of them look like
+- **[examples/](examples/)** — what the pipeline produces, and what 20 runs look like
+  - **[run-cumulative-stats/](examples/run-cumulative-stats/)** — one complete run, every
+    artifact, including the bug-fix loop
+  - **[run-progress-store-tests/](examples/run-progress-store-tests/)** — the first live
+    run of this version: measured tokens, wall clock, cost, and what it found
+  - **[artifacts/](examples/artifacts/)** — the output contracts the orchestrator parses
 - **[PIPELINE.md](PIPELINE.md)** — the runbook: every step, its transition criterion,
   the strict rules
 - **[PIPELINE-GRAPH.md](PIPELINE-GRAPH.md)** — the same thing as a state diagram
