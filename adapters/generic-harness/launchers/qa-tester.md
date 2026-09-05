@@ -23,6 +23,10 @@ directly after a developer pass.
 - The test suite result
 - An explicit verdict: green, or blocked with the in-scope list
 
+The blocking list also holds findings with unconfirmed origin, explicitly marked as
+pending classification. Require the role's base-version evidence before accepting
+`pre-existing`; unresolved classification prevents a green verdict.
+
 **Mandatory gate:** the test suite runs before any verdict, using the profile's command,
 after discovering the actual targets or devices rather than assuming. Failures **and**
 skips become bug issues first. Re-run after every fix pass.

@@ -19,6 +19,8 @@ after every fix pass. Failures and skips become bug issues first.
 
 File an issue for every bug — including pre-existing ones — but report in-scope and
 pre-existing as two separate lists. Only the in-scope list blocks the pipeline.
+Keep findings with unconfirmed origin explicitly marked in the blocking list until
+classified. Apply `pre-existing` only with the evidence your role requires.
 
 This harness provides no automatic agent memory; see
 `agent-orchestration/memory/README.md` for the file-based fallback.

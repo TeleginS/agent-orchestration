@@ -26,7 +26,8 @@ The repo is inferred from the git remote — `gh` does this automatically inside
 ## Pull requests
 
 - **Create**: `gh pr create --title "..." --body "..." --base <base-branch>`
-- **Review with findings**: `gh pr review <number> --request-changes --body "..."`
+- **Review with findings**: `gh pr comment <number> --body-file <review-file>` when
+  reviewer and PR author share an account; see the constraint below for other accounts
 - **Approve**: `gh pr comment <number> --body "..."` — see the constraint below
 - **Comment**: `gh pr comment <number> --body "..."`
 - **Diff**: `git fetch origin <base> && git diff origin/<base>...HEAD`
@@ -36,28 +37,37 @@ that already landed.
 
 ### The self-approval constraint
 
-Every agent in the pipeline authenticates as the same user, so the reviewer is the author
-of the PR it is reviewing. GitHub rejects that:
+By default every agent in the pipeline authenticates as the same user, so the reviewer
+is the author of the PR it is reviewing. GitHub rejects both formal approval and a
+request for changes on your own PR:
 
 ```
 gh pr review <n> --approve
 > Can not approve your own pull request
+gh pr review <n> --request-changes
+> Can not request changes on your own pull request
 ```
 
-`--request-changes` works fine on your own PR; only `--approve` is blocked. So:
+When reviewer and author share an account:
 
-- **Blocking findings** → `gh pr review --request-changes --body "..."`, as normal.
-- **Approval** → post the verdict with `gh pr comment`, opening with the literal
-  `✅ APPROVAL` (or `**Verdict: ✅ APPROVED**`) so the orchestrator and any human reader
-  can find it. Say in the comment that it is posted as a comment because self-approval is
-  blocked, so nobody reads the missing green check as an unfinished review.
+- **Blocking findings** → publish the complete `Code Review — Iteration N` report via
+  `gh pr comment <number> --body-file <review-file>`, with an explicit blocked verdict.
+  Return the same findings to the orchestrator; a comment does not mean approval.
+- **Approval** → publish a comment opening with the literal `✅ APPROVAL`, followed by
+  the review summary, via `gh pr comment <number> --body-file <review-file>`.
+
+Explain in either comment that formal self-review verdicts are unavailable. Preserve
+actual newlines in the review file and verify that the comment was posted successfully.
 
 The orchestrator gates Step 5 on the reviewer's **reported verdict**, not on GitHub's
 review state. Do not wait for an approval that cannot be given.
 
-If you run agents under separate accounts or a bot token, this constraint disappears and
-`--approve` works — but the verdict string stays mandatory either way, because that is
-what the pipeline parses.
+Formal `gh pr review <number> --request-changes --body-file <review-file>` or `--approve`
+is an option only when the authenticated reviewer differs from the PR author and has
+the necessary permissions. A different token alone does not establish a different
+identity. If identity is unknown, use a comment; if GitHub rejects a formal self-review,
+publish the report as a comment instead. Keep the explicit verdict in the report either
+way, because that is what the pipeline consumes.
 
 ## Labels the pipeline relies on
 
@@ -68,7 +78,7 @@ what the pipeline parses.
 | `size:S\|M\|L\|XL` | task-planner | Estimated size |
 | `blocked` | task-planner | Has an unmet dependency |
 | `bug` | qa-tester | Every filed defect |
-| `pre-existing` | qa-tester | Not introduced by this PR — never enters the fix loop, never auto-closed |
+| `pre-existing` | qa-tester | Verified on the pre-change base and not worsened by this PR — never enters the fix loop, never auto-closed |
 | `severity:critical\|high\|medium\|low` | qa-tester | Triage severity |
 | `component:<name>` | qa-tester | Module, from the profile's module list |
 
@@ -79,8 +89,10 @@ Step 8 reads it to decide what must stay open.
 
 - **"publish to the tracker"** → create an issue
 - **"fetch the relevant ticket"** → `gh issue view <number> --comments`
-- **"leave findings on the PR"** → `gh pr review --request-changes`, not only a report
-  back to the orchestrator
+- **"leave findings on the PR"** → publish the review report as a PR comment when
+  reviewer and author share an account (or identity is unknown); a formal review is
+  optional for a distinct reviewer with permission, as described above. Also return the
+  report to the orchestrator.
 
 ## Swapping trackers
 

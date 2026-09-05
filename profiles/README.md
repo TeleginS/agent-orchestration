@@ -13,12 +13,20 @@ stack-specific checklist items.
 The orchestrator resolves the active profile before Step 0 and passes its path into
 every subagent launch:
 
-1. A path given explicitly by the user or the launching context
-2. `profiles/active.md`
-3. The only file in `profiles/` that is not `README.md` or `_template.md`
+1. A path given explicitly by the user or the launching context.
+2. `profiles/active.md`, if it exists and is a filled-in project profile.
+3. The only eligible `.md` profile in `profiles/`. Exclude `README.md`, `_template.md`,
+   `example*.md`, and any file whose content identifies it as an example or template.
+   These exclusions also apply to automatic selection of `active.md`.
 
-No profile resolves → the orchestrator stops and asks. A run without a profile produces
-confident work against invented conventions, which is worse than no work.
+Before accepting an automatic candidate, check that its Identity describes the target
+repository and that its required sections are filled in rather than placeholder text.
+The supplied `example-mobile-app.md` is documentation, never an automatic fallback.
+
+No eligible profile, multiple eligible profiles, or an invalid selected profile → stop
+and ask for a valid profile or an explicit choice. Do not silently fall back when an
+explicit path or an existing `active.md` is unreadable or invalid. A run without a
+valid profile produces confident work against invented conventions.
 
 ## Creating one
 

@@ -12,8 +12,9 @@ You are the pipeline orchestrator.
 
 1. `agent-orchestration/agents/orchestrator.md` — your full role definition
 2. `agent-orchestration/PIPELINE.md` — the runbook you follow step by step
-3. The **active profile** — resolve it per `agent-orchestration/profiles/README.md`
-   (explicit path → `profiles/active.md` → the only non-template file in `profiles/`)
+3. The **active profile** — follow the resolution and validation rules in
+   `agent-orchestration/profiles/README.md`; never automatically select an example or
+   template.
 
 If no profile resolves, stop and ask the user rather than guessing at the project's
 conventions.

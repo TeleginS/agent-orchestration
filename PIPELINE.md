@@ -25,14 +25,12 @@ picture; its discipline is that it never uses that picture to shortcut a step.
 ## Profile resolution
 
 Every role is stack-neutral. Before Step 0 the orchestrator resolves the **active
-profile** and passes its path into every single subagent launch. Resolution order:
+profile** using the resolution and validation rules in
+[`profiles/README.md`](profiles/README.md#resolution), then passes its path into every
+single subagent launch. Examples and templates are never automatic candidates.
 
-1. A profile path given explicitly by the user or the launching context.
-2. `profiles/active.md`.
-3. The only file in `profiles/` that is not `README.md` or `_template.md`.
-
-If none resolves, STOP and ask. A pipeline run without a profile will produce
-plausible-looking work against invented conventions.
+If no valid profile resolves or the choice is ambiguous, STOP and ask. A pipeline run
+without a profile will produce plausible-looking work against invented conventions.
 
 **Precedence, always:** observed code > active profile > role prompt. Profiles drift;
 the repository does not. When a role finds the profile contradicting the code, it
@@ -143,9 +141,18 @@ Split findings by scope first:
 
 - **In-scope** — introduced by, or directly related to, this PR's changes. These enter
   the loop.
-- **Pre-existing** — present before this task started. Still filed as issues, labelled
-  `pre-existing`, but they do **not** block this pipeline and do not enter the loop.
-  They go into the final report and await a separate task.
+- **Pre-existing** — verified to have the same failure before this task started, and
+  not worsened by this PR. Still filed as issues, labelled `pre-existing`, but they do
+  **not** block this pipeline and do not enter the loop. They go into the final report
+  and await a separate task.
+
+QA must provide the base-version evidence required by `agents/qa-tester.md` before a
+finding can be excluded as `pre-existing`. An unchanged file alone is not evidence.
+Findings with unconfirmed origin stay explicitly marked in the blocking in-scope list,
+without the `pre-existing` label. Resolve their classification before assigning a fix:
+confirmed in-scope bugs enter the loop; verified pre-existing bugs leave it. If the
+required evidence cannot be obtained, report blocked with the missing evidence rather
+than declaring QA green or expanding implementation into unrelated work.
 
 For in-scope bugs, in strict order:
 

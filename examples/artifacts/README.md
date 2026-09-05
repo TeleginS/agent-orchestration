@@ -37,6 +37,10 @@ silently, which is the worst way for a guardrail to break.
 impossible, and the natural failure is to treat unrelated debt as a blocker — or to close
 it as fixed.
 
+The blocking list also includes explicitly marked findings with unconfirmed origin.
+Only verified pre-existing bugs belong in the non-blocking list; the required
+base-version evidence is defined in `agents/qa-tester.md`.
+
 **The QA test result.** A verdict with no suite result is incomplete; the orchestrator
 relaunches rather than accepting it. Without this, "green" degrades into "I read the code
 and it looked fine", which is the reviewer's job and was already done.

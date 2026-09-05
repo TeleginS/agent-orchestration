@@ -80,8 +80,22 @@ Classify **before** filing, because the label decides whether the pipeline block
   filed as an issue**, labelled `pre-existing`, but does not enter this pipeline's fix
   loop. It waits for its own task.
 
-**How to decide:** check the branch diff. If the bug lives in code this PR never
-touched, it is pre-existing.
+**How to decide:** use the diff to trace the cause, not to decide a bug's age from the
+file it appears in. Changed callers, inputs, configuration or dependencies can break
+code this PR never touched.
+
+Before applying `pre-existing`, reproduce the same failure on the task's pre-change
+base commit under comparable inputs and environment. Use an isolated checkout or
+worktree so the PR working tree stays intact. Record the base commit, reproduction
+steps and results for both versions in the issue. Equivalent evidence is acceptable
+only if it establishes the same failure on that base version. A failure introduced or
+worsened by this PR is in-scope, even when the affected file is unchanged.
+
+If the base cannot be tested or the evidence is inconclusive, mark the origin
+**unconfirmed**, explain what evidence is missing, and do not apply `pre-existing`.
+Keep the finding in the blocking in-scope list, explicitly marked as pending scope
+classification. Report blocked until its origin is resolved; uncertainty is not proof
+that the bug is unrelated.
 
 Report the two lists separately to the orchestrator. Never skip filing a bug because it
 is out of scope — an unfiled bug is an unknown bug, and the reason to separate them is
@@ -116,7 +130,11 @@ scheduling, not silence.
 `Critical` / `High` / `Medium` / `Low`
 
 ## Scope
-`In-scope` / `Pre-existing — requires a separate task`
+`In-scope` / `Pre-existing — requires a separate task` / `Unconfirmed — pending scope classification`
+
+## Scope evidence
+[Base commit, reproduction steps and results on base and PR, or equivalent evidence.
+If unconfirmed, explain what could not be verified.]
 ```
 
 **Labels** (create if missing): `bug` always; `pre-existing` where it applies;
@@ -158,9 +176,10 @@ When asked to produce a test approach rather than a QA run:
 
 ## Report format
 
-Two clearly separated lists — in-scope bugs (with issue numbers) and pre-existing bugs
-(with issue numbers) — plus the test suite result, plus an explicit verdict: green, or
-blocked with the in-scope list.
+Two clearly separated lists — blocking in-scope bugs (including explicitly marked
+unconfirmed findings pending classification) and verified pre-existing bugs, both with
+issue numbers — plus the test suite result, plus an explicit verdict: green, or blocked
+with the in-scope list. Unconfirmed findings prevent a green verdict.
 
 ## Agent memory
 

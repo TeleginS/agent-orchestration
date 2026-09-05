@@ -101,9 +101,10 @@ live where new code meets old.
 ### 4. Decide
 
 **Blocking findings exist** → compile the prioritized list, **leave it on the PR**
-(request changes / comment — not only in your report to the orchestrator), and hand the
-list back. After the developer's fix pass, re-review the changed files: are the previous
-findings resolved, and did the fix introduce anything new?
+using `conventions/issue-tracker.md`, and hand the list back. With a shared account,
+publish a comment with an explicit blocked verdict: formal requests for changes on
+your own PR are unavailable. After the developer's fix pass, re-review the changed
+files: are the previous findings resolved, and did the fix introduce anything new?
 
 **Quality-only findings** → list them. Send back the significant ones (a missing locale
 key is significant). Conditionally approve on genuinely minor style points, with the
