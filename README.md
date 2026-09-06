@@ -84,6 +84,9 @@ remote — and treat your first live run as a shakedown.
 - **[agents/](agents/)** — the six role prompts
 - **[profiles/](profiles/)** — the one file you write to adopt this
 - **[adapters/](adapters/)** — Claude Code, Codex, generic harness
+- **[docs/talks/](docs/talks/)** — two 20-minute Manychat meetup plans in Russian
+  - **[Detailed case study](docs/talks/manychat-meetup-agent-orchestration-talk.md)** — pipeline evolution and PR #198
+  - **[Theory and practice](docs/talks/manychat-meetup-agent-orchestration-talk-theory-and-practice.md)** — six minutes of agent theory and a shorter case study
 
 ## The idea
 
