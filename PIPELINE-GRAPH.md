@@ -1,12 +1,8 @@
 # Pipeline State Graph
 
-The state machine described in [PIPELINE.md](PIPELINE.md). Renders natively on GitHub;
-any mermaid viewer or `mmdc` will also do.
-
-> Syntax notes, both learned the hard way: every state description is quoted
-> (`state "..." as ID`), because a bare colon inside the text breaks the parser — and
-> `stateDiagram-v2` has no dotted-arrow form. `-.->` is flowchart syntax; here it fails
-> with `Parse error ... got 'INVALID'`. Transitions are `-->` only.
+The state machine described in [PIPELINE.md](PIPELINE.md). View it on GitHub or in a
+renderer that supports Mermaid's
+[`stateDiagram-v2` syntax](https://mermaid.js.org/syntax/stateDiagram.html).
 
 ```mermaid
 stateDiagram-v2
@@ -45,7 +41,7 @@ stateDiagram-v2
 
     S5 --> S7: QA green
     S5 --> S6: in-scope bugs found
-    S5 --> S10: pre-existing bugs — filed, never block
+    S5 --> S7: only verified pre-existing bugs — filed, non-blocking
 
     state "Step 6 — bug-fix loop" as S6 {
         direction LR
@@ -70,9 +66,10 @@ stateDiagram-v2
 
 - **Every arrow is a transition** taken once the step's criterion is met. `stateDiagram-v2`
   cannot style individual transitions, so the distinctions live in the labels.
-- **Step 5 → Step 10 directly** is the one edge that is not part of the main cycle:
-  pre-existing bugs are filed as issues and go straight to the final report, never
-  blocking the run.
+- **Verified pre-existing bugs** are filed as issues and included in the final report.
+  If these are the only findings, continue to Step 7; artifact review, issue cleanup,
+  and optional housekeeping still follow. Findings with unconfirmed origin remain
+  blocking, as described in [Step 6](PIPELINE.md#step-6--bug-fix-loop).
 - **Nested states** — the two loops. Step 4 is reviewer ⇄ developer. Step 6 is
   fix → review → re-test, and the review in the middle is rule 11: no code reaches a
   green QA verdict unreviewed.
