@@ -1,7 +1,10 @@
 name = "developer"
 description = "Load the canonical developer skill for implementation or a fix pass."
 
-# Model and reasoning are intentionally unset; host defaults and user overrides apply.
+# Uncomment to override host defaults for this role.
+# model = "gpt-5.6-terra"
+# model_reasoning_effort = "high"
+
 developer_instructions = '''Resolve the target project root from the launch context. Use the supplied absolute
 library root, or resolve <project-root>/agent-orchestration physically, following symlinks.
 

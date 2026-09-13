@@ -49,11 +49,33 @@ has no `settings-optimizer` TOML.
 
 ## Models and runtime capabilities
 
-The supplied TOMLs set no model or reasoning defaults, preserving the existing adapter's
-behavior. The host's configured defaults apply unless the user overrides them. Configure
-per-role `model` and `model_reasoning_effort` in installed TOMLs when desired; keep such
-choices out of canonical skills. These are supported custom-agent configuration fields
-in the [official Codex subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+Every role file in `agents/` includes commented examples for `model` and
+`model_reasoning_effort`. **You can set the model and reasoning effort separately for
+each role:** remove the leading `#` from those two lines in the installed
+`.codex/agents/<role>.toml` and adjust the values to models and effort levels supported
+by your host. For example, enable these settings in `.codex/agents/developer.toml`:
+
+```toml
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
+```
+
+The commented examples come from TrafficRulesApp's role assignments:
+
+| Role | Example model | Example reasoning effort |
+|---|---|---|
+| `orchestrator` (optional delegated role) | `gpt-5.6-sol` | `medium` |
+| `task-planner` | `gpt-5.6-sol` | `high` |
+| `developer` | `gpt-5.6-terra` | `high` |
+| `code-reviewer` | `gpt-5.6-sol` | `high` |
+| `qa-tester` | `gpt-5.6-sol` | `high` |
+
+While the lines remain commented, they set no overrides: the host's configured
+defaults apply unless the user overrides them. Settings in `orchestrator.toml` apply
+only when that optional delegated role is launched; invoking `$orchestrator` in the
+main conversation does not switch the main session's model or reasoning effort.
+Keep model choices in host configuration, separate from canonical skills. The fields
+are documented in the [official Codex subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
 The available launch tool varies across Codex hosts. Use registered roles if the actual
 tool supports them. Otherwise read the installed TOML and apply its instructions and

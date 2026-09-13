@@ -187,6 +187,10 @@ working from the same decisions.
 | Step 9 (settings) | ✅ applies | ⊘ no permission config | ⊘ usually none |
 | Loop guardrails | orchestrator | orchestrator | orchestrator |
 
+Each Codex role TOML includes commented `model` and `model_reasoning_effort` examples.
+Uncomment them in the installed `.codex/agents/<role>.toml` to configure that role;
+otherwise host defaults apply. See [Codex model configuration](adapters/codex/README.md#models-and-runtime-capabilities).
+
 Every adapter is a **pointer** to `skills/<role>/SKILL.md`. Runtime files explain
 launching and model selection; `PIPELINE.md` remains the shared workflow. All hosts
 use `.agents/memory/<role>/` in the adopting project and explicitly load the
