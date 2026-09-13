@@ -39,7 +39,7 @@ it as fixed.
 
 The blocking list also includes explicitly marked findings with unconfirmed origin.
 Only verified pre-existing bugs belong in the non-blocking list; the required
-base-version evidence is defined in `agents/qa-tester.md`.
+base-version evidence is defined in `skills/qa-tester/SKILL.md`.
 
 **The QA test result.** A verdict with no suite result is incomplete; the orchestrator
 relaunches rather than accepting it. Without this, "green" degrades into "I read the code

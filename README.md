@@ -1,11 +1,11 @@
 # agent-orchestration
 
-A multi-agent delivery pipeline you can point at any codebase. One task in, one reviewed
-and QA'd pull request out.
+A delivery pipeline built from reusable skills that you can point at any codebase.
+One task in, one reviewed and QA'd pull request out.
 
-Six specialized agents, eleven steps, two loops with guardrails. The orchestrator holds
-the whole picture and delegates every piece of work; nothing it coordinates does it also
-do itself.
+Six canonical skills, eleven steps, two loops with guardrails. The orchestrator stays
+in the main conversation, clarifies requirements with you, and delegates planning,
+implementation, review, and QA to separate subagents.
 
 ```
 task → plan → branch → implement → review ⇄ fix → QA → fix ⇄ review ⇄ retest → cleanup → report
@@ -66,6 +66,9 @@ wall clock and a costed estimate — **≈1.7M tokens, ~$10, 1.5 hours** for a t
 competent engineer would scope at half a day. Whether that trade is worth it is argued
 honestly in the report rather than assumed.
 
+That measured run predates the skill packaging and shared memory migration. It is
+evidence for the pipeline, not an end-to-end validation of the new host launchers.
+
 One run is not twenty. Point it at something real in
 [dry-run](PIPELINE.md#dry-run-mode) first — it touches neither your tracker nor your
 remote — and treat your first live run as a shakedown.
@@ -81,7 +84,7 @@ remote — and treat your first live run as a shakedown.
 - **[PIPELINE.md](PIPELINE.md)** — the runbook: every step, its transition criterion,
   the strict rules
 - **[PIPELINE-GRAPH.md](PIPELINE-GRAPH.md)** — the same thing as a state diagram
-- **[agents/](agents/)** — the six role prompts
+- **[skills/](skills/)** — the six canonical skills
 - **[profiles/](profiles/)** — the one file you write to adopt this
 - **[adapters/](adapters/)** — Claude Code, Codex, generic harness
 - **[docs/talks/](docs/talks/)** — two 20-minute Manychat meetup plans in Russian
@@ -97,15 +100,17 @@ the next project and that quietly rot as this one moves.
 
 So the prompts here are split along that seam:
 
-- **`agents/<role>.md`** — how a reviewer reviews, how a planner decomposes, what a QA
+- **`skills/<role>/SKILL.md`** — how a reviewer reviews, how a planner decomposes, what a QA
   verdict requires. Stack-neutral, and true regardless of what the project is written
   in.
 - **`profiles/<project>.md`** — build and test commands, module names, architecture
   invariants, release gates, the stack-specific checklist entries.
 
 The orchestrator resolves the active profile once and passes its path into every
-subagent launch. Adopting the pipeline for a new project means writing one profile, not
-editing six prompts.
+subagent launch. Adopting the pipeline for a new project means writing one profile.
+Host adapters control invocation and models; the skill bodies remain shared. Each
+stage completes its assignment and returns to the orchestrator without restarting
+the pipeline.
 
 **Precedence is: observed code > profile > role prompt.** Profiles are written by hand
 and go stale; roles are told to follow the code when the two disagree and to report the
@@ -119,19 +124,24 @@ cp agent-orchestration/profiles/_template.md agent-orchestration/profiles/active
 ```
 
 Fill in `active.md` — [`example-mobile-app.md`](profiles/example-mobile-app.md) shows
-the useful level of detail. Then install an adapter:
+the useful level of detail. Then follow the installation instructions for
+[Claude Code](adapters/claude-code/README.md), [Codex](adapters/codex/README.md), or a
+[generic harness](adapters/generic-harness/README.md).
 
-```bash
-cp -r agent-orchestration/adapters/claude-code/agents/. .claude/agents/
-```
+Codex discovers the canonical packages through per-role links in the adopting project's
+`.agents/skills/`. Claude uses thin skill launchers in `.claude/skills/` to supply its
+model and fork settings. Install only these roles and preserve unrelated skills.
 
-Launch the orchestrator with your task and let it work through the pipeline.
+In Claude, invoke `/orchestrator <task>`; in Codex, invoke `$orchestrator` with the task.
+The orchestrator stays in your conversation while each stage runs separately. You can
+also invoke a stage skill directly when you want only that stage. Skills respect the
+scope and mode you supplied; selecting a stage does not start the full pipeline.
 
 ## The roles
 
 | Role | Owns | Never does |
 |---|---|---|
-| `orchestrator` | Sequencing, git hygiene, issue cleanup, the final report | Writes code. Decomposes. Reviews. |
+| `orchestrator` | Requirement clarification, sequencing, git hygiene, issue cleanup, the final report | Writes code. Decomposes. Reviews. |
 | `task-planner` | Decomposition into tracker issues with acceptance criteria | Implements |
 | `developer` | Implementation, fix passes, the PR | Reviews its own work |
 | `code-reviewer` | Reviewing the diff, blocking or approving | Fixes what it reviews |
@@ -161,25 +171,32 @@ merge is confirmed. Closing the wrong one erases a tracked task.
 **No blanket `git add .`.** Only durable artifacts, path by path. Anything uncertain goes
 in the report for a human to decide.
 
-**Step 0 can stop the pipeline before it starts** — when a task needs product decisions
-nobody has made yet. Not because documentation is missing, but because four agents are
-each about to decide it differently, and the disagreement will resurface as QA bugs.
+**Step 0 resolves missing product decisions before planning.** The orchestrator can
+clarify them with you in the main conversation and record the agreed design artifacts.
+Small operational tasks can proceed without design documents. This keeps the stages
+working from the same decisions.
 
 ## Harness support
 
 | | Claude Code | Codex | Generic |
 |---|---|---|---|
-| Agent registry | ✅ `.claude/agents/` | ✅ `.codex/agents/` | ❌ manual assembly |
-| Per-role model selection | ✅ | ✅ | ❌ |
-| Automatic agent memory | ✅ | ❌ file-based fallback | ❌ file-based fallback |
+| Main entry point | `/orchestrator` skill | `$orchestrator` skill | Main-session runbook |
+| Stage execution | Forked skills | Role TOMLs or explicit spawn configuration | Subagent with assembled context |
+| Per-role model selection | Skill launcher frontmatter | Host configuration / role TOMLs | Host capability |
+| Shared project memory | Explicit skill reads | Explicit skill reads | Explicit skill reads |
 | Step 9 (settings) | ✅ applies | ⊘ no permission config | ⊘ usually none |
 | Loop guardrails | orchestrator | orchestrator | orchestrator |
 
-Every adapter is a **pointer**, not a copy. Each registration file names the role, sets
-whatever the harness needs, and tells the agent to read `agents/<role>.md`. Nothing
-duplicates a prompt body — which is the failure this shape exists to prevent, and one the
-original of this pipeline actually hit: a pipeline rule lived in one registration format
-and was missing from the other.
+Every adapter is a **pointer** to `skills/<role>/SKILL.md`. Runtime files explain
+launching and model selection; `PIPELINE.md` remains the shared workflow. All hosts
+use `.agents/memory/<role>/` in the adopting project and explicitly load the
+[shared memory rules](memory/RULES.md).
+
+Existing `agents/<role>.md` paths remain compatibility pointers for earlier loaders
+and historical references. For existing installations, follow the adapter's migration
+instructions to switch orchestration into the main conversation and retire old Claude
+agent registrations. In particular, do not copy Claude launchers through a
+`.claude/skills` symlink into the canonical skill directory.
 
 ## Also here
 

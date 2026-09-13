@@ -94,7 +94,7 @@ The exact limits, if the product has them. Vague gating rules produce vague QA.
 ## Review checklist additions
 
 Stack-specific items the reviewer adds to the universal checklist in
-`agents/code-reviewer.md`, grouped by its severity headings.
+`skills/code-reviewer/SKILL.md`, grouped by its severity headings.
 
 - 🔴 **Critical**: <...>
 - 🟠 **Architectural**: <...>
@@ -103,7 +103,7 @@ Stack-specific items the reviewer adds to the universal checklist in
 
 ## Anti-patterns
 
-Code smells specific to this stack, beyond the universal list in `agents/developer.md`.
+Code smells specific to this stack, beyond the universal list in `skills/developer/SKILL.md`.
 
 - <...>
 

@@ -1,7 +1,7 @@
 # The Pipeline
 
 The canonical delivery pipeline. Everything else in this repository is derived from
-this file: the role prompts implement their slice of it, the harness adapters just
+this file: the canonical skills implement their slice of it, the harness adapters just
 change how a step is launched.
 
 One task in, one reviewed and QA'd pull request out. Eleven steps, two loops, and a
@@ -12,15 +12,41 @@ results.
 
 | Role | Owns | Never does |
 |---|---|---|
-| `orchestrator` | Sequencing, git branch/commit hygiene, issue cleanup, the final report | Writes code. Decomposes tasks. Reviews. |
+| `orchestrator` | Requirement clarification, sequencing, git hygiene, issue cleanup, the final report | Writes code. Decomposes tasks. Reviews. |
 | `task-planner` | Decomposing the task into tracker issues with acceptance criteria | Implements anything |
 | `developer` | Implementation, fix passes, opening the PR | Reviews its own work. Closes unmerged issues. |
 | `code-reviewer` | Reviewing the diff, blocking or approving | Fixes the code it reviews |
 | `qa-tester` | Verifying acceptance criteria, running the test suite, filing bug issues | Fixes bugs |
 | `settings-optimizer` | Consolidating the harness's local permission config | Touches app code or git state |
 
-The orchestrator is a pure coordinator. Its power is that it holds the only complete
-picture; its discipline is that it never uses that picture to shortcut a step.
+The orchestrator runs in the main conversation. It clarifies requirements with the
+user, records the resulting design decisions, and delegates each delivery stage to a
+separate subagent. Planning, implementation, review, and QA remain separate responsibilities.
+
+## Execution and handoffs
+
+Load [the orchestrator skill](skills/orchestrator/SKILL.md) and the matching
+[runtime adapter](adapters/README.md). The skills contain the shared procedures;
+adapters supply host-specific launch and model configuration. A skill invocation is
+not by itself evidence of independent execution. If a host cannot delegate, report
+the missing capability instead of claiming independent review or QA.
+
+Resolve the target project root, the physical library root (following skill symlinks),
+and the active profile. Library documents are relative to the library root; source,
+branch operations, run plans, and `.agents/memory/` belong to the target project.
+Pass absolute root, profile, and adapter paths in each handoff, plus the original task,
+design artifacts, mode, current branch/PR or local diff, prior findings, file ownership,
+and applicable user constraints. Each stage completes its assignment and returns to
+the orchestrator; it never starts the pipeline recursively.
+
+Existing authorization and explicit branch, local-only, no-push, and memory restrictions
+remain in force across stages. Select real or dry-run mode before starting; if a
+constraint prevents a required real-mode action, resolve that specific limitation
+before the action rather than silently publishing or declaring the step complete.
+
+At every stage, explicitly read [the shared memory rules](memory/RULES.md), the role's
+project memory index if present, and only relevant notes, unless the user has restricted
+memory use. Pass those restrictions onward and coordinate overlapping writes.
 
 ## Profile resolution
 
@@ -50,16 +76,18 @@ pipeline a source of truth to converge on. Without them, four agents will each i
 a slightly different version of the feature and the disagreement will surface as QA
 bugs.
 
-The orchestrator **cannot** run that clarification itself — it is an interactive,
-user-driven conversation that happens before the orchestrator is launched.
+The main-conversation orchestrator can conduct this clarification and record the
+agreed decisions in the project's design artifacts. An available design-interview
+skill may help, but no particular skill is required. If orchestration was explicitly
+delegated to a subagent, return concrete unresolved questions to the main conversation.
 
 | Situation | Action |
 |---|---|
 | Artifacts exist and cover the task | Treat as source of truth, pass paths to every subagent, go to Step 1 |
 | Artifacts missing, task is small/operational (bug fix, build fix, test update, copy tweak, tooling chore, an already-specific request) | Go to Step 1, note explicitly that no design artifacts applied |
-| Artifacts missing and the task needs product/design decisions | **STOP.** Return to the user asking for a design pass first. Never fabricate the design. |
+| Artifacts missing and the task needs product/design decisions | Pause before planning, clarify the concrete decisions with the user in this conversation, record the agreed artifacts, then repeat this check. Never fabricate the design. |
 
-This is the only planned stop before development starts.
+Profile, planning, and working-tree problems can also pause the run before development.
 
 ## Step 1 — Planning
 
@@ -70,8 +98,10 @@ explicit "no design artifacts applied").
 acceptance criteria, dependencies and a size label. For an atomic task, a single issue
 with no epic is correct.
 
-**Transition criterion:** the numbers and URLs of the overview issue and every child
-issue are collected.
+**Transition criterion:** planning is complete and the numbers and URLs of the overview
+and child issues, or the single atomic issue, are collected. Unresolved questions or a
+Markdown-only fallback in real mode do not satisfy this gate. Resolve them before
+branch creation; in dry-run mode the saved plan is the expected artifact instead.
 
 ## Step 2 — Branch creation
 
@@ -80,13 +110,18 @@ The orchestrator does this itself. It is a git operation, not implementation.
 1. Check the tree first: `git status --porcelain`. If tracked files were modified by a
    parallel session, do **not** force anything — report and resolve explicitly with the
    user. Never carry unrelated changes into the feature branch.
-2. `git checkout <base> && git pull origin <base>`, where `<base>` is the **Base
-   branch** declared in the active profile — never assumed. If the pull fails on local
-   modifications, STOP and report rather than resolving silently.
-3. Derive a branch name from the task: `feature/<short-name>` for new functionality,
-   `fix/<short-name>` for bug fixes.
-4. `git checkout -b <branch> && git push -u origin <branch>`. Pushing a branch with no
-   unique commits is fine — it points at the base commit until the developer pushes.
+2. For a new branch, `git checkout <base> && git pull origin <base>`, where `<base>`
+   is the **Base branch** declared in the active profile — never assumed. If the pull
+   fails on local modifications, STOP and report rather than resolving silently.
+   If an existing task branch was supplied, verify its base and working tree instead
+   of switching to the base branch.
+3. Honor the user's existing branch choice and the host's branch-prefix convention
+   (for example, `codex/`). Otherwise derive `feature/<short-name>` for functionality
+   or `fix/<short-name>` for bug fixes.
+4. Create a new branch with `git checkout -b <branch>` only if needed, then
+   `git push -u origin <branch>`. Pushing a branch with no unique commits is fine — it
+   points at the base commit until the developer pushes. Apply the dry-run substitution
+   below when running locally.
 
 **Transition criterion:** the branch exists on the remote.
 
@@ -123,6 +158,10 @@ acceptance criteria. The reviewer reads the actual diff, not a summary of it, an
 to the user with the full finding list. A loop that cannot converge in three passes has
 a problem the loop itself cannot fix.
 
+Count each completed review verdict as one iteration, including the initial review.
+A failed or incomplete launch does not approve the change and must not reset the
+counter. After the third blocking verdict, do not start another fix/review round.
+
 ## Step 5 — QA
 
 Launch `qa-tester` with the original task, the issue URLs (for acceptance criteria),
@@ -146,7 +185,7 @@ Split findings by scope first:
   **not** block this pipeline and do not enter the loop. They go into the final report
   and await a separate task.
 
-QA must provide the base-version evidence required by `agents/qa-tester.md` before a
+QA must provide the base-version evidence required by `skills/qa-tester/SKILL.md` before a
 finding can be excluded as `pre-existing`. An unchanged file alone is not evidence.
 Findings with unconfirmed origin stay explicitly marked in the blocking in-scope list,
 without the `pre-existing` label. Resolve their classification before assigning a fix:
@@ -166,6 +205,13 @@ Loop until: all in-scope bugs are fixed in the PR, no new in-scope bugs are open
 every fixed issue carries a PR reference comment while staying open.
 
 **Guardrail:** at most 3 iterations, then STOP and escalate.
+
+Count each developer bug-fix pass and its review as one iteration; an approved review
+also includes the following QA re-test. A blocking review consumes that iteration even
+when QA cannot run. Carry the counter through review send-backs and new QA findings;
+do not reset it when moving between developer, reviewer, and tester. If the third pass
+still has review blockers or fails QA, report the unresolved findings instead of
+starting a fourth pass.
 
 ## Step 7 — Stray artifact review
 
@@ -207,10 +253,17 @@ open on purpose, with the reason.
 Only meaningful on harnesses that accumulate a local permission allowlist. Skip it
 where the profile says the harness has none.
 
-Launch `settings-optimizer` — it needs no task context. It only ever edits the settings
-file and never runs git itself. If it changed something: confirm you are on the PR
-branch, check whether the file is tracked, and if so commit and push it to the PR. If
-untracked or ignored, leave the local edit and note it in the report.
+Launch `settings-optimizer` with the active profile, authorized settings paths, mode,
+and task constraints, including memory restrictions. It may edit the authorized settings
+and its own project memory under the shared rules; it never runs git itself. In dry-run
+or audit-only mode it reports proposed changes without editing settings or memory.
+
+If it changed anything, confirm the task branch and review the diff, separating this
+stage's changes from pre-existing edits. Commit only this task's intended changes to
+tracked settings files; never force-add ignored or untracked settings. Review its memory
+changes using Step 7 even when no settings changed, because this stage runs after the
+earlier artifact review. Push resulting commits to the existing PR only within the
+task's authorization. Report settings or memory deliberately left local.
 
 ## Step 10 — Final report
 
@@ -260,7 +313,7 @@ pipeline on a new project before pointing it at a real repository.
 | 6 | Fix loop stays local; issue closure becomes a checklist in the run plan |
 | 7 | Artifacts listed, not committed |
 | 8 | Skipped — no issues exist |
-| 9 | Audit only: report what *would* change, without editing the file |
+| 9 | Audit only: report what *would* change, without editing settings or memory |
 | 10 | Final report plus an offer to re-run for real |
 
 The mode is fixed at launch and recorded on the first line of the run plan.

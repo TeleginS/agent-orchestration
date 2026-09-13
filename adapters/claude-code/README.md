@@ -1,69 +1,84 @@
 # Adapter: Claude Code
 
-Claude Code auto-discovers subagents from `.claude/agents/*.md`. Each file's frontmatter
-registers the agent; its `description` drives delegation; its body is the prompt.
-
-These six files are thin wrappers. The body tells the agent to read the canonical role
-prompt and the active profile at launch, so the real content stays in one place.
+`/orchestrator` runs in the main conversation. The five stage wrappers run their
+canonical skills in separate subagents using `context: fork`, `agent: general-purpose`
+and `background: false`. Each wrapper forwards `$ARGUMENTS` and loads the shared skill
+plus [`runtime.md`](runtime.md); the workflow stays in the library.
 
 ## Install
 
-```bash
-cp -r agent-orchestration/adapters/claude-code/agents/. .claude/agents/
-```
-
-Then create your profile:
+Complete the [shared installation](../README.md#shared-installation) first. For a new
+installation, run the following from the adopting project root only after confirming
+`.claude/skills` is a real directory or absent:
 
 ```bash
-cp agent-orchestration/profiles/_template.md agent-orchestration/profiles/active.md
+if [ -L .claude/skills ]; then
+  printf '%s\n' 'Existing .claude/skills symlink: follow the migration instructions first.'
+else
+  mkdir -p .claude/skills
+  for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer; do
+    if [ -e ".claude/skills/$role" ] || [ -L ".claude/skills/$role" ]; then
+      printf 'Preserving existing skill: %s\n' "$role"
+    else
+      cp -R "agent-orchestration/adapters/claude-code/skills/$role" ".claude/skills/$role"
+    fi
+  done
+fi
 ```
 
-Fill it in. That's the adoption work — the six role prompts need no editing.
+Review any same-name skill that was preserved before using it. Do not replace unrelated
+skills. If the library has another location, provide its absolute physical root in the
+invocation; wrappers default to `<project-root>/agent-orchestration`.
 
-If you vendored this repository somewhere other than `<project-root>/agent-orchestration/`,
-update the paths inside the copied files.
+### Migrate an existing installation
+
+An existing `.claude/skills -> ../.agents/skills` link exposes shared canonical skills.
+**Do not copy wrappers through this link**: a role may itself link into the library,
+which would overwrite the canonical skill with Claude metadata.
+
+First inventory the existing entries and preserve their resolved targets. Replace only
+the top-level `.claude/skills` symlink with a real directory, retaining the old link as
+a backup outside skill discovery. Recreate each unrelated entry as a link to its
+previous target. For these six pipeline names, preserve any custom content separately,
+then install the Claude wrappers as real directories. Inspect per-role symlinks too;
+never copy a wrapper into a symlinked role directory. This is a reviewed migration,
+not a blanket copy or removal of the skills tree.
+
+After verifying the new commands, retire only the old pipeline files from
+`.claude/agents/`: `ai-orchestrator.md`, `task-planner.md`, `developer.md`,
+`code-reviewer.md`, `qa-tester.md` and `settings-optimizer.md`. Preserve custom edits
+and unrelated agents. Update project instructions that still say to launch
+`ai-orchestrator` through the Agent tool. Migrate existing role memory using the
+[shared memory guidance](../../memory/README.md).
 
 ## Run
 
-Launch the orchestrator with the task, in the main conversation:
+```text
+/orchestrator Task: <the task>. Active profile: /absolute/project/profile.md
+```
 
-> Use the ai-orchestrator agent: <the task>
+The main conversation can resolve product questions with the user before delegating.
+It invokes stage skills through the native Skill tool and supplies the complete handoff
+defined in `PIPELINE.md`. See [`runtime.md`](runtime.md) for path resolution and launch
+behavior. The mode, gates and stop conditions come from the canonical pipeline.
 
-It resolves the profile, then works through [`../../PIPELINE.md`](../../PIPELINE.md),
-launching the other five by name via the Agent tool.
+## Models and compatibility
 
-For a task needing product or design decisions, do that clarification in the main
-conversation **first** — Step 0 stops the pipeline otherwise, and correctly so. The
-orchestrator cannot run an interactive design conversation from inside a subagent.
-
-## What this harness provides
-
-| Pipeline assumption | Claude Code |
+| Skill | Wrapper model |
 |---|---|
-| Subagent launching | Agent tool, by registered name |
-| Persistent agent memory | `memory: project` in frontmatter → `.claude/agent-memory/<name>/` |
-| Local permission config | `.claude/settings.local.json` → **Step 9 applies** |
-| Loop guardrails | Not enforced by the harness — the orchestrator counts them |
+| `orchestrator` | `opus` |
+| `task-planner` | `opus` |
+| `developer` | `sonnet` |
+| `code-reviewer` | `sonnet` |
+| `qa-tester` | `sonnet` |
+| `settings-optimizer` | `haiku` |
 
-## Model selection
+These preserve the previous adapter defaults. Change model metadata in the installed
+Claude wrappers to configure this host; do not change canonical skills. Respect an
+explicit user model override through the host's supported controls and report an
+unsupported selection before launching.
 
-Set per role in the frontmatter. The defaults here reflect what each role actually does:
-
-| Role | Model | Why |
-|---|---|---|
-| `ai-orchestrator` | opus | Holds the whole run's state and makes the scope calls |
-| `task-planner` | opus | Decomposition quality sets the ceiling for everything downstream |
-| `developer` | sonnet | Volume work against a specified plan |
-| `code-reviewer` | sonnet | Volume work against an explicit checklist |
-| `qa-tester` | sonnet | Volume work against explicit criteria |
-| `settings-optimizer` | haiku | Mechanical pattern consolidation |
-
-Adjust to taste. The two worth spending on are the planner and the orchestrator: a bad
-decomposition or a mis-sequenced run costs more than a weaker implementation pass, which
-the review loop is there to catch.
-
-## Naming
-
-The orchestrator is registered as `ai-orchestrator` rather than `orchestrator` because
-Claude Code matches delegation against the description and name, and the bare word is
-generic enough to collide. The other five keep their canonical names.
+Claude documents `background: false` for foreground forked skills in v2.1.218 and
+later. Verify command discovery and that a stage runs as a fork when adopting the
+adapter; do not assume that reading a wrapper's Markdown applies its frontmatter.
+[Claude Code skill documentation](https://code.claude.com/docs/en/skills).

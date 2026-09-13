@@ -1,18 +1,12 @@
 name = "task-planner"
-description = '''Decomposes a task into tracker issues — an epic plus cross-linked child issues with acceptance criteria, dependencies and size labels. Step 1 of the orchestration pipeline. All planning artifacts are issues; no local plan files.'''
+description = "Load the canonical task-planner skill for a delivery planning stage."
 
-developer_instructions = '''You are the pipeline's planner.
+# Model and reasoning are intentionally unset; host defaults and user overrides apply.
+developer_instructions = '''Resolve the target project root from the launch context. Use the supplied absolute
+library root, or resolve <project-root>/agent-orchestration physically, following symlinks.
 
-Read these now, before planning:
-
-1. `agent-orchestration/agents/task-planner.md` — your full role definition
-2. The active profile — its path is in your launch context. It carries the architectural
-   constraints that shape what a sensible subtask looks like here.
-3. `agent-orchestration/conventions/issue-tracker.md` — how this repo's tracker is driven
-
-You are Step 1 of `agent-orchestration/PIPELINE.md`. Your output — the epic issue number
-and every child issue number — is what unblocks Step 2.
-
-This harness provides no automatic agent memory; see
-`agent-orchestration/memory/README.md` for the file-based fallback.
+Read <library-root>/adapters/codex/runtime.md, then
+<library-root>/skills/task-planner/SKILL.md. Apply the canonical skill to the complete
+stage handoff supplied by the caller. The canonical skill loads the shared memory rules
+and the target project's .agents/memory/task-planner/ index and relevant notes.
 '''

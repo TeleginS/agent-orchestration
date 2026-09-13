@@ -1,51 +1,64 @@
-# Harness Adapters
+# Runtime Adapters
 
-Three ways to run the same pipeline. Every adapter is **thin**: it carries the
-harness-specific wiring — registration format, model selection, launch mechanics — and
-points at the canonical role prompt in [`../agents/`](../agents/). None of them
-duplicates a role body.
+The main conversation runs the orchestrator skill. Stage skills supply the procedures;
+an adapter supplies the host's launch mechanism, model selection and environment.
+The canonical instructions live in [`../skills/`](../skills/) and the state machine
+lives in [`../PIPELINE.md`](../PIPELINE.md).
 
-That is deliberate. The moment an adapter contains a copy of a prompt, the copies drift,
-and the pipeline behaves differently depending on which harness you ran it from. A
-pointer cannot drift.
-
-| Adapter | For | Registration |
+| Adapter | Main conversation | Independent stage execution |
 |---|---|---|
-| [`claude-code/`](claude-code/) | Claude Code | `.claude/agents/*.md` with frontmatter, auto-discovered |
-| [`codex/`](codex/) | Codex | `.codex/agents/*.toml` |
-| [`generic-harness/`](generic-harness/) | Any harness with a subagent primitive but no agent registry | Manual prompt assembly at launch |
+| [`claude-code/`](claude-code/) | `/orchestrator` | Native forked skills, with model metadata in thin Claude wrappers |
+| [`codex/`](codex/) | `$orchestrator` | Thin TOML loaders when supported, or explicit launch configuration |
+| [`generic-harness/`](generic-harness/) | Load the orchestrator skill | Assemble a skill and its handoff into a supported subagent launch |
 
-## Installation
+Skills and subagents serve different purposes: loading a procedure does not create an
+independent agent or select a model. Review and QA need separate agents from the
+implementer; an adapter must preserve that boundary.
 
-Vendor this repository into your project — submodule, subtree, or a plain copy — at
-`<project-root>/agent-orchestration/`, then install the adapter you need. Each adapter's
-README has the exact steps.
+## Shared installation
 
-If you vendor it somewhere else, update the prompt paths inside the adapter files. They
-are relative to the project root, and they are the only place the location appears.
+Vendor this library at `<project-root>/agent-orchestration/`, then create a project
+profile following [`../profiles/README.md`](../profiles/README.md). Keep the canonical
+skills discoverable through individual links, preserving unrelated project skills:
 
-## Choosing one
+```bash
+if [ -L .agents/skills ]; then
+  printf '%s\n' 'Inspect the existing .agents/skills symlink and adapt link targets first.'
+else
+  mkdir -p .agents/skills
+  for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer; do
+    if [ -e ".agents/skills/$role" ] || [ -L ".agents/skills/$role" ]; then
+      printf 'Preserving existing skill: %s\n' "$role"
+    else
+      ln -s "../../agent-orchestration/skills/$role" ".agents/skills/$role"
+    fi
+  done
+fi
+```
 
-Use `claude-code/` if you're on Claude Code — it has a real subagent registry, so the
-orchestrator can delegate by name and the harness handles model selection and memory.
+Run this from the adopting project root. Inspect any preserved same-name entry before
+using it: a different skill is not an installed pipeline role. If `.agents/skills`
+itself is a symlink, inspect its destination first and adapt the link targets to that
+physical directory; the relative paths above assume a real project directory.
 
-Use `generic-harness/` for anything with a `subagent`-style primitive but no registry.
-It is the most portable and the most explicit: the orchestrator assembles each prompt by
-hand from a shim, the role file, and the step context. Its runbook also carries the
-iteration guardrails as explicit counters, since there's no framework enforcing them.
+Then follow the chosen adapter's installation instructions. Do not copy Claude-specific
+frontmatter into the canonical skills. Resolve skill symlinks to find the physical
+library root, and use absolute paths for the target repository, profile, runtime adapter,
+skill and design artifacts in every handoff. A vendored library directory is not the
+target application's repository root.
 
-Use `codex/` alongside either. Note that maintaining a third registration format for the
-same six roles is real overhead — skip it unless you actually run the pipeline there.
+All adapters use `<project-root>/.agents/memory/<role>/`. The canonical skills load
+[`../memory/RULES.md`](../memory/RULES.md) and the role's index explicitly, respecting
+the task's memory restrictions before reading. See
+[`../memory/README.md`](../memory/README.md) for migration from host-specific memory.
 
-## Adding an adapter
+## Maintaining an adapter
 
-1. Create `adapters/<harness>/` with a README covering installation and launch.
-2. For each role, write the harness's registration artifact with: the role name, a
-   description good enough for delegation, model selection if the harness supports it,
-   and a body that instructs the agent to read `agent-orchestration/agents/<role>.md`
-   plus the active profile.
-3. Do not paste role content. If the harness cannot read a file at runtime, generate the
-   adapter from `agents/` in a build step rather than maintaining a copy by hand.
-4. Note in the README how the harness handles the pieces the pipeline assumes: subagent
-   launching, persistent memory, and whether it has a local permission config (which
-   decides whether Step 9 applies).
+Keep host model defaults and user overrides in host configuration. A loader reads the
+canonical skill and passes the complete handoff; it does not repeat the skill's
+checklist, report format, pipeline transitions, loop limits or dry-run rules. If a
+configured launch option cannot be honored, surface the mismatch before launching;
+do not silently run a different model or execute an independent review inline.
+
+Optional settings housekeeping depends on the runtime capability and active profile.
+The canonical pipeline owns whether it runs and what dry-run means.

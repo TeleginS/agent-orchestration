@@ -1,107 +1,57 @@
-# Orchestrator Runbook — Generic Harness
+# Generic runtime adapter
 
-You are the orchestrator. The main session plays the role; every step-agent is a
-subagent whose prompt you assemble by hand.
+The main conversation applies `<library-root>/skills/orchestrator/SKILL.md`.
+`<library-root>/PIPELINE.md` is the shared runbook: it owns the steps, handoff fields,
+transition criteria, loop limits and modes. This file supplies only launch mechanics
+and environment context.
 
-**The flow is [`../../PIPELINE.md`](../../PIPELINE.md).** Read it and follow it step by
-step. This file is only the harness-specific delta: how to launch, what the harness does
-not do for you, and how to run without a tracker.
+## Resolve the environment
 
-Your role definition is [`../../agents/orchestrator.md`](../../agents/orchestrator.md).
+Establish the target project's absolute root from the launch context or the main
+conversation's repository root. Resolve the supplied library root physically, following
+symlinks; otherwise use `<project-root>/agent-orchestration`. The project root is where
+work and memory live; the library root supplies skills and conventions. Resolve the
+profile, runtime adapter, canonical skill and artifact paths to absolute paths before
+launching a child.
 
-## Prompt assembly
+Identify the host's actual independent-agent primitive, available filesystem and shell
+tools, configured model/reasoning choices, and whether a local permission configuration
+exists. Report an unavailable required capability instead of naming another host's
+tools. Apply any required working directory or environment setup through supported
+launch options; use the active profile's build and test commands.
 
-Every subagent launch is three parts, concatenated:
+## Assemble a stage launch
 
-```
-prompt = shim + full contents of agents/<role>.md + step context
-```
+Launch an independent subagent with these parts:
 
-Read the role file and paste it in. Do not summarize it — a summarized checklist is a
-different checklist.
+1. **Runtime context:** role, absolute project/library roots, canonical skill path,
+   this runtime adapter's absolute path, working directory, available capabilities
+   and ownership constraints.
+2. **Canonical instructions:** tell the child to read
+   `<library-root>/skills/<role>/SKILL.md`. If file loading is unavailable, include
+   that file's full contents and the relevant references it requires; do not summarize
+   checklists or invent a substitute procedure.
+3. **Stage handoff:** include every applicable field required by `PIPELINE.md`: original
+   task, active profile, design artifacts, mode, issues, branch/base, PR, findings,
+   iteration, ownership, memory restrictions and limits on external writes. Use absolute
+   paths and explicit absence where appropriate.
 
-### The shim
+Subject to the task's memory restrictions before reading, the child loads
+`<library-root>/memory/RULES.md`, then the shared role index at
+`<project-root>/.agents/memory/<role>/MEMORY.md` and relevant notes. If files must be
+inlined, provide these relevant inputs too and preserve their write policy. All memory
+belongs to the target project; do not create a host-specific alternative root.
 
-Identical for every role except the substitutions:
+Use the host's configured defaults unless the user or host configuration specifies a
+role model or reasoning choice. Pass explicit choices through supported launch options;
+if they cannot be honored, report the mismatch before substituting. Merely including a
+model name in a prompt does not select that model.
 
-> You are acting as the subagent `<role>` under the instructions below, running in
-> `<harness name>` — **not** Claude Code. Repository: `<repo root>`.
->
-> You have file read/write and a shell. You do **not** have Claude Code's Task/Agent or
-> TodoWrite tools — don't try to call them; do the work yourself.
->
-> The instructions below are your role: the checklists and the report format are
-> mandatory. Return your report to the orchestrator in exactly the format your role
-> specifies — for the reviewer, the `Code Review — Iteration N` block; for QA, the
-> separated in-scope / pre-existing lists with issue numbers; for the developer, the
-> changed files plus the PR number; for the planner, the issue numbers and URLs.
->
-> The **active profile** is at `<profile path>`. Read it first. Precedence is: observed
-> code > profile > this prompt. If the profile contradicts the code, follow the code and
-> report the drift.
->
-> Before starting, read your memory notes at `<memory root>/<role>/MEMORY.md` and any
-> relevant entries it indexes. When you finish, update them per your role's memory
-> section.
+Wait for the result and return the canonical skill's report to the main orchestrator.
+Use a separate agent from the implementer for review and another for QA. A host without
+independent agents cannot complete these stages by applying the skills inline.
 
-That last paragraph exists because this harness does not load agent memory for you. On a
-harness that does, drop it.
-
-## Preconditions
-
-Check these once at the start of a session, by running the commands — not by trusting a
-previous run's notes:
-
-- [ ] Tracker CLI authenticated
-- [ ] Working tree clean, on the base branch
-- [ ] Design artifacts present, or the task is operational (Step 0 decides)
-- [ ] A preflight build succeeds and the test suite runs — using the profile's commands
-- [ ] The active profile resolves and matches what you see in the repository
-- [ ] The task from the user is in hand
-
-A preflight build that fails here fails for the developer too, three steps later, with
-much less clarity about why.
-
-## Guardrails you enforce yourself
-
-Nothing in this harness counts iterations, enforces the review gate, or stops a loop.
-
-- **Step 4** (review ⇄ developer): maximum 3 iterations. State the count in each
-  progress message. Still blocked after the third → STOP, report the full finding list
-  to the user.
-- **Step 6** (fix → review → re-test): maximum 3 iterations, same handling.
-- **Rule 11**: every code change after QA begins passes the reviewer before QA re-tests.
-  It is easy to skip here because you are assembling the prompts by hand and the
-  reviewer feels like an extra step. It is the step that stops an unreviewed fix from
-  shipping under a green QA verdict.
-- **Full context every time**: a hand-assembled prompt is easy to under-fill. The
-  subagent has no memory of the previous step and no access to your conversation.
-
-## Running without a tracker
-
-Dry-run mode from `PIPELINE.md`, with the local paths this adapter uses:
-
-| Step | Behaviour |
-|---|---|
-| 1 | Planner returns the plan as markdown; save to `run-plans/<slug>.md` (`mkdir -p run-plans`) |
-| 2 | Local branch only, no push |
-| 3 | Implementation on the local branch, no PR; report is the file list plus summary |
-| 4 | Review of `git diff <base>...HEAD` locally; identical report format |
-| 5 | Bugs as a markdown list, split in-scope / pre-existing |
-| 6 | Fix loop local; issue closure becomes a checklist in the run plan |
-| 7 | Artifacts listed, not committed |
-| 8 | Skipped — no issues exist |
-| 9 | Audit only: report what *would* change, without editing the file |
-| 10 | Final report plus an offer to re-run for real |
-
-Fix the mode at launch and record it on the first line of the run plan. A run that
-switches modes halfway leaves half its state in the tracker and half on disk.
-
-## Differences from a registry-based harness
-
-| Aspect | Registry harness | This one |
-|---|---|---|
-| Launching | By registered name; framework loads the prompt | Manual assembly: shim + role file + context |
-| Model per role | Declared in the agent's metadata | Whatever the harness gives you |
-| Agent memory | Loaded automatically | Loaded by the shim, explicitly |
-| Loop limits | Still the orchestrator's job | Still the orchestrator's job, with less visibility |
+The main orchestrator follows the canonical pipeline's guardrails and mode throughout;
+this adapter does not carry a second dry-run table or step counter policy. Optional
+settings housekeeping is supported only if the runtime and active profile identify a
+local permission configuration. In dry-run it is audit-only, including no memory writes.

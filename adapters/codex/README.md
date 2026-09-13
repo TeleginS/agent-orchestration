@@ -1,48 +1,64 @@
 # Adapter: Codex
 
-Codex registers agents from `.codex/agents/*.toml`. Each file carries the name, the
-delegation description, and `developer_instructions` as the prompt body.
-
-Like the other adapters, these are thin: `developer_instructions` points at the
-canonical role prompt in `agent-orchestration/agents/` rather than copying it.
+Invoke `$orchestrator` in the main conversation after installing the canonical skills
+under `.agents/skills/`. Independent stages use the thin files in [`agents/`](agents/)
+to load the same canonical skills with [`runtime.md`](runtime.md). The orchestrator
+TOML is optional compatibility wiring; it is not the normal entry point.
 
 ## Install
 
-```bash
-cp -r agent-orchestration/adapters/codex/. .codex/
-```
-
-Then create your profile:
+Complete the [shared installation](../README.md#shared-installation), then install the
+four stage loaders from the adopting project root:
 
 ```bash
-cp agent-orchestration/profiles/_template.md agent-orchestration/profiles/active.md
+mkdir -p .codex/agents
+for role in task-planner developer code-reviewer qa-tester; do
+  if [ -e ".codex/agents/$role.toml" ] || [ -L ".codex/agents/$role.toml" ]; then
+    printf 'Preserving existing loader: %s\n' "$role"
+  else
+    cp "agent-orchestration/adapters/codex/agents/$role.toml" ".codex/agents/$role.toml"
+  fi
+done
 ```
 
-Edit `.codex/environments/environment.toml` to name your project and add any setup
-script the agents need before running commands.
+Inspect a preserved same-name loader and merge its custom host settings with the new
+canonical skill pointer. Keep unrelated agents and `.codex/config.toml` intact. If
+`.codex/agents` itself is a symlink, inspect its destination before installing.
 
-If you vendored this repository somewhere other than `<project-root>/agent-orchestration/`,
-update the paths inside the copied `.toml` files.
+If an older installation includes `.codex/agents/orchestrator.toml`, retire it after
+updating launch instructions to `$orchestrator`, or explicitly retain it for a workflow
+that needs a delegated coordinator. Do not install it by default. A delegated
+coordinator must return unresolved user decisions to the main conversation.
 
-## What this harness provides
+The optional [`environments/environment.toml`](environments/environment.toml) is a
+setup template. Merge needed setup commands into the project's existing environment;
+do not copy the entire adapter over `.codex/` and overwrite local configuration.
 
-| Pipeline assumption | Codex |
-|---|---|
-| Subagent launching | By registered name |
-| Persistent agent memory | Not provided — see `agent-orchestration/memory/README.md` for the file-based fallback |
-| Local permission config | None → **Step 9 does not apply**, skip it |
-| Loop guardrails | Not enforced — the orchestrator counts them |
+## Run
 
-Only five roles are registered here. `settings-optimizer` is deliberately absent: it
-exists to consolidate a harness-local permission allowlist, and this harness has none.
+```text
+$orchestrator Task: <the task>. Active profile: /absolute/project/profile.md.
+Runtime adapter: /absolute/project/agent-orchestration/adapters/codex/runtime.md
+```
 
-## A word of warning
+The main conversation resolves the active profile and follows the canonical pipeline.
+It passes the complete handoff to each stage. All roles explicitly use
+`<project-root>/.agents/memory/<role>/` through the canonical skills and shared memory
+rules. This adapter does not provide local permission-allowlist housekeeping, so it
+has no `settings-optimizer` TOML.
 
-Maintaining a third registration format for the same six roles is real overhead, and the
-source this pipeline was extracted from had exactly the problem you'd expect: the TOML
-copies drifted from the markdown ones, and a rule that existed in one was missing from
-the other for months.
+## Models and runtime capabilities
 
-Keeping the bodies as pointers is what prevents that here. Do not "inline the prompt for
-convenience" — that is the failure mode this adapter shape exists to avoid. If you don't
-actually run the pipeline on Codex, delete this directory.
+The supplied TOMLs set no model or reasoning defaults, preserving the existing adapter's
+behavior. The host's configured defaults apply unless the user overrides them. Configure
+per-role `model` and `model_reasoning_effort` in installed TOMLs when desired; keep such
+choices out of canonical skills. These are supported custom-agent configuration fields
+in the [official Codex subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+
+The available launch tool varies across Codex hosts. Use registered roles if the actual
+tool supports them. Otherwise read the installed TOML and apply its instructions and
+configured model/reasoning through supported spawn parameters, following
+[`runtime.md`](runtime.md). Do not assume a particular `agent_type` argument exists or
+that merely reading a TOML configures a child. If a requested option cannot be honored,
+report the mismatch and resolve it before launching; do not silently substitute the
+parent model. Independent review and QA still require separate agents.

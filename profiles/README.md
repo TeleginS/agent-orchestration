@@ -3,7 +3,7 @@
 A **profile** is everything the roles need to know about *your* project. It is the only
 file you have to write to adopt this pipeline.
 
-The role prompts in `agents/` are deliberately stack-neutral. They describe how a
+The canonical skills in `skills/` are deliberately stack-neutral. They describe how a
 reviewer reviews, not what a Swift reviewer checks. The profile supplies the second
 half: build commands, module names, architecture invariants, release gates,
 stack-specific checklist items.
@@ -18,6 +18,11 @@ every subagent launch:
 3. The only eligible `.md` profile in `profiles/`. Exclude `README.md`, `_template.md`,
    `example*.md`, and any file whose content identifies it as an example or template.
    These exclusions also apply to automatic selection of `active.md`.
+
+These automatic paths are relative to the physical library root, not the skill's
+discovery symlink or the target project's current subdirectory. An explicit path is
+resolved from the launching context. Pass the selected profile's absolute path into
+every stage; project paths inside the profile are relative to the target project root.
 
 Before accepting an automatic candidate, check that its Identity describes the target
 repository and that its required sections are filled in rather than placeholder text.
@@ -55,6 +60,9 @@ Every section in `_template.md` is required. Roles reference them by name:
 Leaving a section empty is fine when it genuinely doesn't apply — say so explicitly
 (`None — this project has no localization layer`) rather than deleting the heading. A
 missing heading reads as an oversight; an explicit "none" reads as a decision.
+
+Harness settings describes project-specific permission paths and command prefixes.
+Role model assignments and launch mechanics belong in the host adapter, not the profile.
 
 ## Keeping it honest
 

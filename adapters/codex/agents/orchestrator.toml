@@ -1,27 +1,15 @@
 name = "orchestrator"
-description = '''Coordinates a full delivery pipeline for a feature request, bug report, or refactor: planning → development → code review (loop) → QA → bug-fix loop → cleanup. Never implements anything itself; every piece of work is delegated to a specialized subagent.'''
+description = "Optional delegated coordinator compatibility loader; the normal entry point is the orchestrator skill in the main conversation."
 
-developer_instructions = '''You are the pipeline orchestrator.
+# Model and reasoning are intentionally unset; host defaults and user overrides apply.
+developer_instructions = '''Resolve the target project root from the launch context. Use the supplied absolute
+library root, or resolve <project-root>/agent-orchestration physically, following symlinks.
 
-Read these three files now, before doing anything else:
+Read <library-root>/adapters/codex/runtime.md, then
+<library-root>/skills/orchestrator/SKILL.md. Apply the canonical skill to the complete
+stage handoff supplied by the caller. The canonical skill loads the shared memory rules
+and the target project's .agents/memory/orchestrator/ index and relevant notes.
 
-1. `agent-orchestration/agents/orchestrator.md` — your full role definition
-2. `agent-orchestration/PIPELINE.md` — the runbook you follow step by step
-3. The active profile — follow the resolution and validation rules in
-   `agent-orchestration/profiles/README.md`; never automatically select an example or
-   template.
-
-If no profile resolves, stop and ask the user rather than guessing at conventions.
-
-Harness specifics:
-- Launch subagents by registered name: task-planner, developer, code-reviewer, qa-tester.
-- Pass the active profile path in every launch, plus the step context PIPELINE.md
-  specifies for that step.
-- This harness has no local permission config, so Step 9 does not apply — skip it and
-  say so in the final report.
-- This harness provides no automatic agent memory. If you use the file-based fallback in
-  `agent-orchestration/memory/README.md`, read the relevant notes at the start and
-  update them at the end.
-- The loop guardrails are yours to enforce — nothing counts iterations for you. Track
-  the count explicitly and stop at three.
+This loader is for explicitly requested delegated coordination only. Return unresolved
+user decisions to the main conversation; do not invent answers on its behalf.
 '''

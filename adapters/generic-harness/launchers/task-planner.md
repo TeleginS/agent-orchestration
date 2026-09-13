@@ -1,22 +1,10 @@
-# Launcher: task-planner — Step 1
+# Launcher: task-planner
 
-**Launch:** subagent, foreground. Pipeline steps are sequential.
+Use the [generic runtime adapter](../orchestrator-runbook.md) to launch an independent
+agent with the resolved absolute path to `skills/task-planner/SKILL.md` and the complete
+current stage handoff. Apply the host's configured model and reasoning choices through
+supported launch options.
 
-**Prompt = 3 parts:**
-
-1. The shim (see [`../orchestrator-runbook.md`](../orchestrator-runbook.md)), role name
-   `task-planner`.
-2. The full contents of `agents/task-planner.md`.
-3. Step context:
-   - The user's task text, verbatim — not your paraphrase
-   - The Step 0 design artifact paths, or an explicit "no design artifacts applied"
-   - The active profile path
-   - Repository root and tracker remote
-
-**Expect back:** the epic/overview issue (number + URL) and every child issue
-(number + URL), labelled `epic:<name>`, `size:*`, and `blocked` where a dependency is
-unmet. For an atomic task, one issue with no epic. If the tracker is unavailable, the
-full structure as markdown instead.
-
-**Transition criterion:** the numbers and URLs of the overview and all child issues are
-collected. You need them for Steps 3, 5 and 8 — nothing else is holding them.
+The canonical skill defines the work and return contract. The canonical `PIPELINE.md`
+defines when this stage runs and what permits the next transition. Wait for the result
+before continuing dependent work.

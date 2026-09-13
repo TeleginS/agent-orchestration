@@ -1,18 +1,15 @@
-# Agent Memory
+# Shared Project Memory
 
-Each role accumulates institutional knowledge about the project it works in. This is the
-layout and the rules; the content is per-project and does not live in this repository.
+Claude, Codex, and generic harnesses use the same project memory. The content belongs
+to the adopting project; this library ships only the [shared rules](RULES.md).
 
 ## Layout
 
-One directory per role, under a memory root the harness decides:
-
-```
-<memory-root>/
+```text
+<project-root>/.agents/memory/
 ├── orchestrator/
-│   ├── MEMORY.md          # index — one line per note, no content
-│   ├── process-<topic>.md
-│   └── history-<topic>.md
+│   ├── MEMORY.md          # short index of links to topic notes
+│   └── process-<topic>.md
 ├── task-planner/
 ├── developer/
 ├── code-reviewer/
@@ -20,66 +17,28 @@ One directory per role, under a memory root the harness decides:
 └── settings-optimizer/
 ```
 
-On Claude Code with `memory: project`, the root is `.claude/agent-memory/`. On harnesses
-without built-in memory, pick a root, keep it in version control, and have the shim load
-`<root>/<role>/MEMORY.md` at launch — the generic-harness shim already does.
+Every canonical skill explicitly reads `memory/RULES.md` from the library, then its
+project index if present, and only the topic notes relevant to its assignment. This
+does not depend on a host's automatic memory feature. Missing indexes are normal;
+create one only when there is useful knowledge to save.
 
-## Note format
+Keep the active profile as the shared source for project structure, commands, and
+conventions. Memory captures verified pitfalls, preferences, decision reasons, and
+links to current sources. The rules define verification, note format, ownership,
+concurrent writes, and the user's ability to restrict, remember, or forget information.
 
-```markdown
----
-name: <short-kebab-case-slug>
-description: <one-line summary — this is what future-you reads to decide relevance>
-metadata:
-  type: user | feedback | project | reference
----
+## Migrating existing memory
 
-<the fact. For feedback and project types, follow with **Why:** and **How to apply:**>
-```
+Review existing host-specific notes and merge useful content into the matching role
+under `.agents/memory/`. The old Claude role `ai-orchestrator` maps to `orchestrator`.
+Preserve existing notes and resolve overlaps by content; do not overwrite one host's
+knowledge with another's or delete notes solely because of their filenames.
 
-Link related notes with `[[slug]]`. A link to a note that doesn't exist yet is fine — it
-marks something worth writing.
+After migration, a project may expose `.claude/agent-memory` as a compatibility symlink
+to `../.agents/memory`. It is optional: the new skills always read, edit, and stage the
+canonical `.agents/memory/` paths. Inspect existing directories or symlinks before
+changing them, and update old role-name references if keeping legacy launchers.
 
-`MEMORY.md` is an **index**, not a memory: one line per note,
-`- [Title](file.md) — hook`, no frontmatter. It is loaded into context every session, so
-keep it short. Never write note content into it.
-
-## What to record
-
-| Type | Content |
-|---|---|
-| `user` | Role, expertise, preferences — how to collaborate with this person |
-| `feedback` | Guidance on how to work, from corrections **and** confirmations. Always include the why. |
-| `project` | Ongoing work, goals, constraints not derivable from the code. Convert relative dates to absolute. |
-| `reference` | Pointers to external systems — dashboards, trackers, channels |
-
-Record from success as well as failure. A memory file containing only corrections
-produces an agent that avoids its past mistakes and drifts away from the approaches the
-user already validated — cautious in a way nobody asked for.
-
-## What NOT to record
-
-- Code structure, architecture, file paths, conventions — **these belong in the
-  profile**, which is versioned, reviewed, and read by every role at launch. A duplicate
-  in memory is a second source of truth that nobody updates.
-- Git history and who-changed-what — `git log` is authoritative.
-- Fix recipes — the fix is in the code and the reason is in the commit message.
-- Ephemeral task state — that is what the run itself is for.
-
-These exclusions hold even when asked directly. If someone asks you to remember a PR
-list, ask what was *surprising* about it and record that instead.
-
-## Staleness
-
-A note naming a file, module or flag is a claim about when it was written. Before acting
-on one, verify the thing still exists. When memory and the code disagree, the code wins
-and the note gets corrected or deleted.
-
-This is the same precedence rule the profile follows, for the same reason: hand-written
-descriptions of a moving codebase are always the part that is wrong.
-
-## Sharing
-
-Project-scoped memory in version control is shared across the team and across harnesses.
-Write it for the next person, not as a private scratchpad — and keep anything personal
-out of a directory that ships in the repository.
+Project memory can be versioned with the adopting project. It is never stored inside
+the vendored library or committed automatically just because a stage updated it. The
+pipeline's artifact review decides what belongs in the task's changes.
