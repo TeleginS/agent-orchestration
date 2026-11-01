@@ -1,8 +1,8 @@
 # Profile: <PROJECT NAME>
 
-> Copy this file, fill in every section, and name it `active.md` (or point the
-> orchestrator at it explicitly). Keep every heading — write an explicit "None" where a
-> section genuinely does not apply.
+> Copy this file to `<project-root>/.agents/profile.md` and fill in every section (or
+> keep it elsewhere and point the orchestrator at it explicitly). Keep every heading —
+> write an explicit "None" where a section genuinely does not apply.
 >
 > **Precedence: observed code > this profile > the role prompts.** Agents are told to
 > follow the code when this file is wrong, and to report the drift. Fix it when they do.

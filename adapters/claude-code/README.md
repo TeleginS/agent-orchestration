@@ -1,8 +1,8 @@
 # Adapter: Claude Code
 
-`/orchestrator` runs in the main conversation. The five stage wrappers run their
-canonical skills in separate subagents using `context: fork`, `agent: general-purpose`
-and `background: false`. Each wrapper forwards `$ARGUMENTS` and loads the shared skill
+`/orchestrator` runs in the main conversation. The six stage wrappers (five pipeline
+stages plus the standalone `production-triage`) run their canonical skills in separate
+subagents using `context: fork`, `agent: general-purpose` and `background: false`. Each wrapper forwards `$ARGUMENTS` and loads the shared skill
 plus [`runtime.md`](runtime.md); the workflow stays in the library.
 
 ## Install
@@ -39,7 +39,7 @@ which would overwrite the canonical skill with Claude metadata.
 First inventory the existing entries and preserve their resolved targets. Replace only
 the top-level `.claude/skills` symlink with a real directory, retaining the old link as
 a backup outside skill discovery. Recreate each unrelated entry as a link to its
-previous target. For these six pipeline names, preserve any custom content separately,
+previous target. For the seven role names above, preserve any custom content separately,
 then install the Claude wrappers as real directories. Inspect per-role symlinks too;
 never copy a wrapper into a symlinked role directory. This is a reviewed migration,
 not a blanket copy or removal of the skills tree.
@@ -62,7 +62,7 @@ self-test first, because a broken `PreToolUse` hook blocks every later tool call
 ## Run
 
 ```text
-/orchestrator Task: <the task>. Active profile: /absolute/project/profile.md
+/orchestrator Task: <the task>. Active profile: /absolute/project/.agents/profile.md
 ```
 
 `production-triage` runs on its own (`/production-triage`), not as a pipeline step; it

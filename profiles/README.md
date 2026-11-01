@@ -14,15 +14,22 @@ The orchestrator resolves the active profile before Step 0 and passes its path i
 every subagent launch:
 
 1. A path given explicitly by the user or the launching context.
-2. `profiles/active.md`, if it exists and is a filled-in project profile.
-3. The only eligible `.md` profile in `profiles/`. Exclude `README.md`, `_template.md`,
+2. `<project-root>/.agents/profile.md` in the target project — the recommended
+   location, next to `.agents/skills/` and `.agents/memory/`, versioned with the code
+   it describes.
+3. `profiles/active.md` in the library, if it exists and is a filled-in project
+   profile. This suits a checkout that is itself the project or a vendored copy;
+   inside a git submodule the file is ignored and cannot be committed by the adopting
+   project, so prefer rule 2.
+4. The only eligible `.md` profile in `profiles/`. Exclude `README.md`, `_template.md`,
    `example*.md`, and any file whose content identifies it as an example or template.
    These exclusions also apply to automatic selection of `active.md`.
 
-These automatic paths are relative to the physical library root, not the skill's
-discovery symlink or the target project's current subdirectory. An explicit path is
-resolved from the launching context. Pass the selected profile's absolute path into
-every stage; project paths inside the profile are relative to the target project root.
+Rule 2 is relative to the target project root; rules 3 and 4 are relative to the
+physical library root, not the skill's discovery symlink or the target project's
+current subdirectory. An explicit path is resolved from the launching context. Pass
+the selected profile's absolute path into every stage; project paths inside the
+profile are relative to the target project root.
 
 Before accepting an automatic candidate, check that its Identity describes the target
 repository and that its required sections are filled in rather than placeholder text.
@@ -35,9 +42,10 @@ valid profile produces confident work against invented conventions.
 
 ## Creating one
 
-Copy `_template.md`, fill in every section, and either name it `active.md` or point at
-it explicitly. `example-mobile-app.md` is a filled-in profile for a subscription mobile
-app — read it to see the level of detail that actually helps.
+Copy `_template.md` to `<project-root>/.agents/profile.md` and fill in every section,
+or keep it elsewhere and point at it explicitly. `example-mobile-app.md` is a filled-in
+profile for a subscription mobile app — read it to see the level of detail that
+actually helps.
 
 ## The contract
 

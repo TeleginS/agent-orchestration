@@ -25,7 +25,11 @@ The repo is inferred from the git remote — `gh` does this automatically inside
 
 ## Pull requests
 
-- **Create**: `gh pr create --title "..." --body "..." --base <base-branch>`
+- **Create**: `gh pr create --title "..." --body "..." --base <base-branch>`. The body
+  carries `Closes #N` for every implemented issue and `Fixes #N` for every bug fixed in
+  the PR; GitHub closes them when the PR merges into the default branch, never before.
+  Pre-existing and backlog issues are referenced without a closing keyword
+  (`Related to #N`).
 - **Review with findings**: `gh pr comment <number> --body-file <review-file>` when
   reviewer and PR author share an account; see the constraint below for other accounts
 - **Approve**: `gh pr comment <number> --body "..."` — see the constraint below

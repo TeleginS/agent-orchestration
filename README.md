@@ -89,9 +89,6 @@ remote — and treat your first live run as a shakedown.
 - **[gates/](gates/)** — hooks that enforce the owner's merge and release gates
 - **[profiles/](profiles/)** — the one file you write to adopt this
 - **[adapters/](adapters/)** — Claude Code, Codex, generic harness
-- **[docs/talks/](docs/talks/)** — two 20-minute Manychat meetup plans in Russian
-  - **[Detailed case study](docs/talks/manychat-meetup-agent-orchestration-talk.md)** — pipeline evolution and PR #198
-  - **[Theory and practice](docs/talks/manychat-meetup-agent-orchestration-talk-theory-and-practice.md)** — six minutes of agent theory and a shorter case study
 
 ## The idea
 
@@ -122,11 +119,15 @@ drift, which surfaces in the final report so the profile can be fixed.
 
 ```bash
 git submodule add <this-repo> agent-orchestration
-cp agent-orchestration/profiles/_template.md agent-orchestration/profiles/active.md
+mkdir -p .agents
+cp agent-orchestration/profiles/_template.md .agents/profile.md
 ```
 
-Fill in `active.md` — [`example-mobile-app.md`](profiles/example-mobile-app.md) shows
-the useful level of detail. Then follow the installation instructions for
+Fill in `.agents/profile.md` — [`example-mobile-app.md`](profiles/example-mobile-app.md)
+shows the useful level of detail. The profile lives in your project, next to
+`.agents/skills/` and `.agents/memory/`, so it is versioned with the code it describes
+and the orchestrator finds it without an explicit path (a file inside the submodule
+could not be committed by your repository). Then follow the installation instructions for
 [Claude Code](adapters/claude-code/README.md), [Codex](adapters/codex/README.md), or a
 [generic harness](adapters/generic-harness/README.md).
 

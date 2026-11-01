@@ -176,13 +176,17 @@ Launch `developer` with: the original task text, the issue URLs, the branch name
 **only** on it), an instruction to read each issue from the tracker rather than
 guessing, and an instruction to open a PR when the implementation is done. The
 developer runs the profile's verification command before reporting and puts its
-summary in the PR; bug fixes start from a committed failing test.
+summary in the PR; bug fixes start from a committed failing test. The PR body carries
+a closing keyword for every issue it implements (`Closes #N`, `Fixes #N` for bugs):
+that is how the tracker gets closed on merge without anyone closing unmerged work
+(see Step 8).
 
 **Transition criterion:** the PR exists and its number is collected.
 
 ## Step 4 — Review loop
 
-Fetch the base branch first so the diff is computed against a fresh base.
+The orchestrator fetches the base branch first (`git fetch origin <base>`) so the diff
+is computed against a fresh base.
 
 Launch `code-reviewer` with the PR number, the original task, the issue URLs for
 acceptance criteria, and the design artifact paths for its compliance pass. The
@@ -245,7 +249,9 @@ than declaring QA green or expanding implementation into unrelated work.
 For in-scope bugs, in strict order:
 
 1. `developer` gets the bug issue numbers and the PR number, pushes to the same branch,
-   and does **not** close the issues — the PR is unmerged. It comments on each instead.
+   and does **not** close the issues — the PR is unmerged. It comments on each instead
+   and adds `Fixes #N` to the PR body. Every fix follows the failing-test-first rule
+   from Step 3, or the PR says why no test is practical; the reviewer checks this in 2.
 2. The fixes go through `code-reviewer` — review scoped to the QA fixes and directly
    affected code. Blockers send it back to 1.
 3. Only after APPROVAL does `qa-tester` re-test, re-running the test suite.
@@ -276,12 +282,25 @@ updates (see `memory/README.md`) — both are durable records that belong with t
 4. If uncertain about a path, leave it uncommitted and list it in the final report for
    the user to decide.
 
+What is committed here lands after QA's verdict with no further review, so it must not
+be code: a source, test or build-configuration file in the list is an unreviewed change
+and goes back through Step 6 under rule 11. After committing, re-run any acceptance
+criterion that is a repo-wide text check and treat a failure as an in-scope bug —
+[#189 in `examples/`](examples/README.md#189--the-pipeline-catching-its-own-agents) is a
+memory note that quoted the very symbol its PR existed to delete.
+
 ## Step 8 — Issue cleanup
 
 Leave the tracker accurate without marking unmerged work as done.
 
 Comment on every issue this pipeline created — the epic, the children, and the resolved
 in-scope bugs — referencing the PR: `Implemented in PR #NN; close after merge.`
+
+Confirm the PR body carries a closing keyword (`Closes #N`, `Fixes #N`) for every
+in-scope issue, and for no other. The tracker then closes them when the owner merges
+into the default branch, which is the only moment closing them is right. When the base
+branch is not the default branch the keywords do nothing; say so in the comment so the
+owner closes by hand after merge. No pipeline step runs after the merge.
 
 **Close an issue only when** the orchestrator has been explicitly told the PR merged,
 or the task involved no PR and the work is already on the target branch.
@@ -311,12 +330,14 @@ If it changed anything, confirm the task branch and review the diff, separating 
 stage's changes from pre-existing edits. Commit only this task's intended changes to
 tracked settings files; never force-add ignored or untracked settings. Review its memory
 changes using Step 7 even when no settings changed, because this stage runs after the
-earlier artifact review. Push resulting commits to the existing PR only within the
+earlier artifact review; settings and memory are the only paths this stage may add
+after QA, anything else follows the Step 7 rule. Push resulting commits to the existing PR only within the
 task's authorization. Report settings or memory deliberately left local.
 
 ## Step 10 — Final report
 
-- What was implemented, and the PR number/URL — left open for the owner's merge
+- What was implemented, and the PR number/URL — left open for the owner's merge, with
+  the issues its closing keywords will close
 - Review status, plus any Nits left as optional follow-ups
 - QA status, including the test suite result
 - Artifact commit summary — what was committed, what was deliberately left and why
