@@ -19,16 +19,16 @@ The other two are enforced by the scripts here.
 | Script | Blocks | Lets through |
 |---|---|---|
 | [`git/pre-push`](git/pre-push) (any tool) | Pushes to protected branches; non-fast-forward pushes to any branch | Feature-branch pushes, new branches, branch deletion, a fast-forward to a protected branch that the project's allow script accepts |
-| [`merge-gate.py`](../adapters/claude-code/hooks/merge-gate.py) (Claude Code) | `gh pr merge`, `gh api .../pulls/N/merge`, a push to a protected branch (refspec, `HEAD`, bare `git push` while on it, `...:<branch>` anywhere in a pushing command), `--force*`, `-f`, `+refspec`, `--mirror`, `--all`, deleting a protected branch | Feature-branch pushes, `gh pr create/view`, a fast-forward that `allow_base_push` accepts |
-| [`release-gate.py`](../adapters/claude-code/hooks/release-gate.py) (Claude Code) | Every command that matches a `release_commands` rule, also behind `xcrun`, `bundle exec`, `npx` | Everything else. With no rules configured, it blocks nothing |
-| [`secrets-gate.py`](../adapters/claude-code/hooks/secrets-gate.py) (Claude Code) | Read/Edit/Write of configured secret files, and Bash commands that open them (`cat`, `source`, `<`, `>>`, `cp`, `grep ... file`, globs like `.env*`) | `secret_allow` names, `ls`/`stat`/`test`, `git check-ignore`, the grep pattern argument, git pathspecs after `--` |
+| [`merge-gate.py`](hooks/merge-gate.py) (Claude Code / local Codex) | `gh pr merge`, `gh api .../pulls/N/merge`, a push to a protected branch (refspec, `HEAD`, bare `git push` while on it, `...:<branch>` anywhere in a pushing command), `--force*`, `-f`, `+refspec`, `--mirror`, `--all`, deleting a protected branch | Feature-branch pushes, `gh pr create/view`, a fast-forward that `allow_base_push` accepts |
+| [`release-gate.py`](hooks/release-gate.py) (Claude Code / local Codex) | Every command that matches a `release_commands` rule, also behind `xcrun`, `bundle exec`, `npx` | Everything else. With no rules configured, it blocks nothing |
+| [`secrets-gate.py`](hooks/secrets-gate.py) (Claude Code / local Codex) | Read/Edit/Write and `apply_patch` (add/update/delete/move) of configured secret files, and Bash commands that open them (`cat`, `source`, `<`, `>>`, `cp`, `grep ... file`, globs like `.env*`) | `secret_allow` names, `ls`/`stat`/`test`, `git check-ignore`, the grep pattern argument, git pathspecs after `--` |
 
 Protected branches default to `main` and `master`. Every block exits 2 with a message
 that names the owner as the route to approval. A block is the gate working; an agent
 reports it rather than looking for a way around it.
 
 **Allowed base pushes.** Some release flows commit straight to the base branch, such
-as a version bump made by an owner-invoked release tool. Point `allow_base_push` (Claude hook)
+as a version bump made by an owner-invoked release tool. Point `allow_base_push` (tool hook)
 and `agent-gates.allowBasePush` (pre-push) at one project script. It receives
 `<remote_sha> <local_sha> <branch>` for a fast-forward and exits 0 to allow it. Keep it
 strict: compare `git diff --raw --no-renames` against an allowlist of paths and
@@ -37,56 +37,113 @@ code change inside a "version-only" range.
 
 ## Install in a project
 
-1. Copy the Claude hooks and choose the configuration:
+The Python engine and its tests live in [`hooks/`](hooks/). Both hosts install the
+same scripts; the host-specific files only wire up events. Python 3 and git are
+required. Run these examples from the adopting project root. Inspect existing hooks,
+symlinks and custom configuration before copying; merge updates rather than replacing
+unrelated hooks or an existing `gates.json`.
 
-   ```bash
-   mkdir -p .claude/hooks
-   cp agent-orchestration/adapters/claude-code/hooks/*.py .claude/hooks/
-   cp agent-orchestration/adapters/claude-code/hooks/gates.example.json .claude/hooks/gates.json
-   ```
+### Claude Code
 
-   Edit `gates.json`: protected branches, secret names, release commands, optional
-   allow script. Keys are documented in [`config.py`](../adapters/claude-code/hooks/config.py).
-2. **Run the self-test before wiring anything**: `python3 .claude/hooks/selftest.py`.
-   A broken PreToolUse hook blocks every later tool call, including the one that would
-   fix it. The self-test also validates `gates.json`; an invalid file falls back to the
-   defaults at run time.
-3. Merge the `hooks` block from
-   [`settings.example.json`](../adapters/claude-code/hooks/settings.example.json) into the
-   **tracked** `.claude/settings.json`, so the gates travel with the repository rather
-   than one machine's local settings.
-4. Copy [`git/pre-push`](git/pre-push) into a tracked directory such as `.githooks/`.
-   The owner activates it once per clone: `git config core.hooksPath .githooks`. Set
-   `agent-gates.protectedBranch` (repeatable) and `agent-gates.allowBasePush` there if
-   the defaults do not fit. Test it against a throwaway bare remote, never the real
-   origin; the self-test does this when it finds the script.
-5. Where the hosting plan allows it, add a server-side branch rule: PR required, no force
-   push, no deletion. Do not require approvals on a single-owner repository, because the
-   owner cannot approve their own PR.
+```bash
+mkdir -p .claude/hooks
+cp agent-orchestration/gates/hooks/*.py .claude/hooks/
+if [ ! -e .claude/hooks/gates.json ] && [ ! -L .claude/hooks/gates.json ]; then
+  cp agent-orchestration/gates/hooks/gates.example.json .claude/hooks/gates.json
+fi
+python3 .claude/hooks/selftest.py
+```
 
-Claude Code, Codex and other harnesses are all covered by `pre-push` and the server rule.
-Only Claude Code also gets the PreToolUse hooks, which stop a command before it runs and
-explain why.
+After the self-test passes, merge the `hooks` block from
+[`settings.example.json`](../adapters/claude-code/hooks/settings.example.json) into the
+tracked `.claude/settings.json`. Existing settings commands still use the same hook
+filenames. When upgrading, replace the old Python implementation with the shared
+scripts above; keep project-specific rules. The old library entry points under
+`adapters/claude-code/hooks/` are compatibility launchers for use inside the library,
+not scripts to copy into another project.
+
+### Local Codex
+
+```bash
+mkdir -p .codex/hooks
+cp agent-orchestration/gates/hooks/*.py .codex/hooks/
+if [ ! -e .codex/hooks/gates.json ] && [ ! -L .codex/hooks/gates.json ]; then
+  cp agent-orchestration/gates/hooks/gates.example.json .codex/hooks/gates.json
+fi
+python3 .codex/hooks/selftest.py
+```
+
+After the self-test passes, merge
+[`hooks.example.json`](../adapters/codex/hooks.example.json) into the tracked
+`.codex/hooks.json`, or translate its event groups into the existing inline `[hooks]`
+configuration in `.codex/config.toml`. Use one representation per layer to avoid
+running a gate twice. The example locates the scripts from the git project root;
+for another layout or a non-git working directory use explicit absolute paths.
+
+In the Codex CLI, the owner reviews and trusts the project and hook definitions via
+`/hooks`. New or changed untrusted hooks are skipped; an installed file does not mean
+an active gate. Check that `features.hooks` has not been disabled by local or managed
+configuration. Confirm the hooks are loaded and trusted in the actual host, including
+when delegating. Codex normalizes shell/`exec_command` calls to `Bash`, and supplies
+patches as `apply_patch` with `tool_input.command`. A denial exits 2 and prints its
+reason to stderr. See the [official Codex hooks documentation](https://learn.chatgpt.com/docs/hooks).
+
+These command hooks require local orchestration and execution. Cloud orchestration
+needs supported managed controls; do not claim local command hooks protect it. Report
+the actual coverage and any gaps in the profile's **Enforcement installed** field.
+
+### Configuration and git protection (both hosts)
+
+Edit the installed `gates.json`: protected branches, secret names, release commands,
+and optional allow script. Keys are documented in [`config.py`](hooks/config.py).
+The shared engine reads `AGENT_GATES_CONFIG` if set, otherwise `gates.json` beside
+its scripts; it does not depend on a Claude environment variable. A missing config
+uses defaults, including **no release rules**. A malformed config warns and uses those
+same defaults at runtime; the self-test rejects it. Configure every publishing command
+from the active profile before treating the release gate as installed.
+
+Run `selftest.py` before wiring hooks and after changing scripts or configuration.
+A broken hook can block later tool calls. Its git tests use throwaway bare remotes;
+they never push to a real origin. Installed outside the library, set
+`AGENT_GATES_PREPUSH` to the absolute pre-push script path to include those tests.
+
+Copy [`git/pre-push`](git/pre-push) into a tracked directory such as `.githooks/`,
+preserving any existing pre-push logic. The owner activates it once per clone:
+`git config core.hooksPath .githooks`. Set `agent-gates.protectedBranch` (repeatable)
+and `agent-gates.allowBasePush` there if needed. Keep the protected branch list and
+allow script consistent with `gates.json`. Ensure the hook is executable.
+
+Where the hosting plan allows it, add a server-side branch rule: PR required, no force
+push, no deletion. This alone does not reserve merging for the owner when an agent
+uses the owner's credentials. Use server-side identity/access controls where available;
+local hooks provide an additional command guard. Release and secrets protection also
+require their own hooks or host controls; neither comes from `pre-push`.
 
 ## Known gaps
 
-- **Indirection.** The Claude hooks parse command text. `G=git; $G push origin main`
+- **Indirection.** The tool hooks parse command text. `G=git; $G push origin main`
   or a push inside a script file is not seen as a push. The raw `:<branch>` count
   catches some forms. `pre-push` sees the actual push and closes the gap for
   protected branches and force pushes.
-- **Server-side merges.** `gh pr merge` run from a non-Claude tool, or through the web
-  UI, is an API call that no local hook sees. Only a server-side branch rule closes it.
+- **Server-side merges.** `gh pr merge` from an unhooked tool, a direct MCP merge, or the web
+  UI is outside these command parsers. Server-side identity/access controls are needed
+  to reserve merging for the owner; a PR-required rule alone does not do that.
 - **Local refs.** `merge-gate.py` checks an allowed base push against the local
   remote-tracking ref, which an agent can rewrite. `pre-push` compares against the
   real remote sha.
 - **Release commands are a list.** The release gate blocks only what `release_commands`
   names. `python -m twine upload` or a custom deploy script needs its own rule, or a
   project-specific hook.
+- **Tool coverage.** The examples guard shell commands and known file edit tools. They
+  do not inspect arbitrary MCP API calls, script contents, recursive directory reads,
+  filesystem aliases or interactive input sent through `write_stdin`. Extend the
+  host's policies for those paths; these parsers are not a complete sandbox boundary.
 
 ## Command wrappers
 
-Hooks receive the command after any rewriting by other hooks. A global rewrite such as
-RTK turns `git push` into `rtk git push`. `lib.py` strips `rtk`, `env`, `sudo`, `time`,
+Do not depend on hook ordering or another hook's rewrite: Codex runs matching command
+hooks concurrently. The parsers accept both plain commands and wrappers such as
+`rtk git push`. `lib.py` strips `rtk`, `env`, `sudo`, `time`,
 `nohup`, `command` and similar prefixes, plus variable assignments, before matching. It
 also expands `bash -c "..."` and `eval`, and ignores heredoc bodies. When you add a
 wrapper to the environment, add it to `WRAPPERS` in `lib.py` and add a self-test case.

@@ -1,9 +1,8 @@
-"""Gate configuration: `.claude/hooks/gates.json` in the project, or built-in defaults.
+"""Shared gate configuration: an explicit path, or gates.json next to these scripts.
 
-Lookup order: $AGENT_GATES_CONFIG, $CLAUDE_PROJECT_DIR/.claude/hooks/gates.json,
-gates.json next to this file. A missing file means defaults. A malformed file also
-falls back to defaults (with a stderr warning) instead of blocking every tool call;
-`selftest.py` reports it.
+Lookup order: $AGENT_GATES_CONFIG, then gates.json next to this file. A missing file
+means defaults. A malformed file also falls back to defaults (with a stderr warning)
+instead of blocking every tool call; `selftest.py` reports it.
 
 Keys:
   protected_branches  branches only the owner merges into        [main, master]
@@ -37,11 +36,6 @@ def config_path():
     explicit = os.environ.get("AGENT_GATES_CONFIG")
     if explicit:
         return explicit
-    project = os.environ.get("CLAUDE_PROJECT_DIR")
-    if project:
-        candidate = os.path.join(project, ".claude", "hooks", "gates.json")
-        if os.path.exists(candidate):
-            return candidate
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "gates.json")
 
 

@@ -67,5 +67,8 @@ The canonical pipeline owns whether it runs and what dry-run means.
 
 Adapters launch stages; they do not by themselves stop an agent from merging or
 publishing. Install the deterministic gates from [`../gates/`](../gates/README.md):
-the git `pre-push` hook works for every host, and Claude Code additionally gets
-pre-tool hooks. Hosts without hooks rely on `pre-push` and server-side branch rules.
+the git `pre-push` hook works for every host. Claude Code and local Codex wire the
+same Python engine into pre-tool hooks using their own configuration. Confirm hooks
+are active/trusted in the host; cloud orchestration needs supported managed controls.
+`pre-push` protects git pushes, not API merges, publishing or secrets. Record gaps and
+use server-side identity/access controls where available.

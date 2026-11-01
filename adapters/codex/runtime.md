@@ -21,6 +21,34 @@ explicitly loads `<library-root>/memory/RULES.md` and the role's index at
 `<project-root>/.agents/memory/<role>/MEMORY.md` plus relevant notes, subject to the
 task's memory restrictions before reading; there is no separate Codex memory root.
 
+## Before starting a run
+
+The main conversation checks the host's capabilities before the first stage, including
+on a resumed run when the host or configuration changed. Children consume that evidence
+and recheck only missing or changed prerequisites relevant to their stage:
+
+- Resolve the active profile and its verification command (or build/test fallback).
+  Pass the command and relevant full variant in the handoff; collect the command,
+  exit status and tested commit from the stage result. Do not turn a missing command
+  into a passing result.
+- Check independent-agent support and the installed role loaders using the launch
+  rules below. Review and QA cannot be performed inline by the implementer.
+- Inspect the profile's human gates, the host's loaded/trusted hook status, the
+  installed gate configuration, and `git config --get core.hooksPath`. Run the shared
+  hook self-test before first use or after hook/config changes. Files on disk and a
+  passing self-test do not prove the host enabled or trusted them. Report unknown,
+  missing or unsupported enforcement explicitly; never describe `pre-push` as
+  protection against API merges or publishing. Follow any stricter requirements in
+  the profile. See `<library-root>/gates/README.md` for installation and limitations.
+- Check tracker tools are available to the stage that needs them. For standalone
+  `production-triage`, also check the profile's error-source tool is available to
+  that child, not just the parent. If unavailable or denied, report the missing
+  source and create no issues; do not substitute code inspection for production data.
+
+Carry the verified capabilities and enforcement gaps into every child handoff.
+Gate configuration and hook trust are setup actions, not settings housekeeping in
+Step 9. Do not change trust or bypass a gate to continue a run.
+
 ## Launching stages
 
 Inspect the current host's available subagent tool and the installed

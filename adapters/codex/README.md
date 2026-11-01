@@ -47,8 +47,17 @@ It passes the complete handoff to each stage. All roles explicitly use
 rules. This adapter does not provide local permission-allowlist housekeeping, so it
 has no `settings-optimizer` TOML.
 
-Codex has no pre-tool hooks here, so the owner's merge and release gates rest on the
-git `pre-push` hook and server-side branch rules; see [`gates/`](../../gates/README.md).
+Install the shared merge, release and secrets scripts plus
+[`hooks.example.json`](hooks.example.json) using the
+[Codex gate setup](../../gates/README.md#local-codex). Preserve existing hook groups and
+project-specific `gates.json` rules. For an existing installation, add the new
+`production-triage` skill link and TOML loader as well; old copied loaders should still
+point to the canonical skills. Keep role model overrides.
+
+The owner reviews and trusts local Codex hooks via `/hooks`; untrusted hooks are
+skipped. Local command hooks are not supported with cloud orchestration. Retain the
+git `pre-push` hook and server-side access controls, and record actual enforcement gaps
+in the profile. The runtime performs a capability check before launching stages.
 `production-triage` needs the profile's error-source tool in the Codex session; without
 it the skill stops and files nothing.
 

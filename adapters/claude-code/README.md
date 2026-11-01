@@ -53,9 +53,10 @@ and unrelated agents. Update project instructions that still say to launch
 
 ## Gate hooks
 
-[`hooks/`](hooks/) holds `PreToolUse` hooks that enforce the owner's merge and release
-gates and keep secret files out of reach. Install them into the project's tracked
-`.claude/settings.json` following [`gates/README.md`](../../gates/README.md); run the
+[`hooks/`](hooks/) holds host wiring and compatibility entry points. The shared
+`PreToolUse` implementation in [`gates/hooks/`](../../gates/hooks/) enforces the owner's
+merge and release gates and checks configured secret paths. Wire them into the project's
+tracked `.claude/settings.json` following [`gates/README.md`](../../gates/README.md); run the
 self-test first, because a broken `PreToolUse` hook blocks every later tool call.
 
 ## Run
