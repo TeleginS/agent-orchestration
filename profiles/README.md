@@ -48,13 +48,17 @@ Every section in `_template.md` is required. Roles reference them by name:
 | Identity | all |
 | Stack | all |
 | Layout | developer, code-reviewer, qa-tester |
+| Verification command | developer, code-reviewer, qa-tester |
 | Commands | developer, qa-tester, orchestrator |
 | Architecture invariants | all |
 | Critical flags and release gates | developer, code-reviewer, qa-tester |
+| Human gates | orchestrator, developer |
 | Review checklist additions | code-reviewer |
+| Review exclusions | code-reviewer |
 | Anti-patterns | developer, code-reviewer |
 | Known risk areas | qa-tester |
-| Output language | task-planner, qa-tester, developer |
+| Production error source | production-triage |
+| Output language | task-planner, qa-tester, developer, production-triage |
 | Harness settings | settings-optimizer, orchestrator |
 
 Leaving a section empty is fine when it genuinely doesn't apply — say so explicitly

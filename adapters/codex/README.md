@@ -8,11 +8,11 @@ TOML is optional compatibility wiring; it is not the normal entry point.
 ## Install
 
 Complete the [shared installation](../README.md#shared-installation), then install the
-four stage loaders from the adopting project root:
+stage loaders from the adopting project root:
 
 ```bash
 mkdir -p .codex/agents
-for role in task-planner developer code-reviewer qa-tester; do
+for role in task-planner developer code-reviewer qa-tester production-triage; do
   if [ -e ".codex/agents/$role.toml" ] || [ -L ".codex/agents/$role.toml" ]; then
     printf 'Preserving existing loader: %s\n' "$role"
   else
@@ -47,6 +47,20 @@ It passes the complete handoff to each stage. All roles explicitly use
 rules. This adapter does not provide local permission-allowlist housekeeping, so it
 has no `settings-optimizer` TOML.
 
+Install the shared merge, release and secrets scripts plus
+[`hooks.example.json`](hooks.example.json) using the
+[Codex gate setup](../../gates/README.md#local-codex). Preserve existing hook groups and
+project-specific `gates.json` rules. For an existing installation, add the new
+`production-triage` skill link and TOML loader as well; old copied loaders should still
+point to the canonical skills. Keep role model overrides.
+
+The owner reviews and trusts local Codex hooks via `/hooks`; untrusted hooks are
+skipped. Local command hooks are not supported with cloud orchestration. Retain the
+git `pre-push` hook and server-side access controls, and record actual enforcement gaps
+in the profile. The runtime performs a capability check before launching stages.
+`production-triage` needs the profile's error-source tool in the Codex session; without
+it the skill stops and files nothing.
+
 ## Models and runtime capabilities
 
 Every role file in `agents/` includes commented examples for `model` and
@@ -69,6 +83,7 @@ The commented examples come from TrafficRulesApp's role assignments:
 | `developer` | `gpt-5.6-terra` | `high` |
 | `code-reviewer` | `gpt-5.6-sol` | `high` |
 | `qa-tester` | `gpt-5.6-sol` | `high` |
+| `production-triage` (standalone) | `gpt-5.6-terra` | `medium` |
 
 While the lines remain commented, they set no overrides: the host's configured
 defaults apply unless the user overrides them. Settings in `orchestrator.toml` apply

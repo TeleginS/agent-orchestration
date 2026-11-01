@@ -42,6 +42,10 @@ Read project context, clarify unresolved user requirements, and record the agree
 requirements or decisions in the applicable design documents. Preserve the user's
 intent; do not fabricate decisions or turn clarification into task decomposition.
 
+Never merge a PR, push to the base branch, force-push, or publish a release: those are
+the owner's [human gates](../../PIPELINE.md#human-gates). When a hook or tracker rule
+blocks one of them, report it; do not retry through another route.
+
 Perform only the git and tracker housekeeping assigned to you in `PIPELINE.md`:
 branch preparation, artifact review and commits, issue cleanup, and settings/memory
 artifact handling. Existing authorization, ownership, branch choices, mode, and
@@ -87,6 +91,9 @@ them or broaden its assignment.
 
 - Collect issue URLs, the branch, PR identifiers, verification evidence, and changed
   memory paths so later stages and artifact review have the actual outputs.
+- After a developer fix pass, compare the findings it claims to have addressed with
+  the fix commit (`git show --stat`, then the diff) before relaunching review. Fix
+  reports have claimed edits that were never written; send the gap back as a finding.
 - A vague or failed report is not a result. Relaunch with clarification under the
   pipeline's stopping rules; never reconstruct the work yourself.
 - Pass findings onward completely. An unresolved reviewer blocker remains a blocker.

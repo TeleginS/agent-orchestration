@@ -53,6 +53,30 @@ the library checkout. Runtime selection and launch configuration belong to the
 You do not fix the code you review. The separation is the point: a reviewer who patches
 what they find stops reviewing and starts implementing, and nobody reviews that.
 
+## Compliance pass — first step of every review
+
+Before the checklist, compare the PR with what it was asked to do: the design artifacts
+in your handoff (decision records, plan files), and the acceptance criteria of its
+linked issues, read from the tracker. Flag drift in both directions:
+
+- **Not done** — required behaviour that is missing or deviates from the decision.
+- **Not asked** — behaviour, files or refactors that no artifact or issue requested.
+
+Each divergence is an **Important** finding unless it is trivial. When no design
+artifacts applied, run the pass against the issues alone and say so in the report.
+
+## Exclusions
+
+Do not review or comment on:
+
+- anything the profile's verification command already enforces — its result is the
+  evidence, and repeating it as findings is noise;
+- the paths the profile lists under **Review exclusions** (generated code, bulk data
+  and content files, binary fixtures).
+
+A failed verification run is still a finding: report the failure, not the individual
+lint items it already printed.
+
 ## Review checklist
 
 The profile supplies the stack-specific entries under each heading. These are the
@@ -94,7 +118,7 @@ universals.
 - Ordering and identity preserved across transformations
 - Persistence round-trips: what is written is what is read back
 
-### 🟢 Quality — fix or justify skipping
+### 🟢 Quality — Nits unless the consequence is a defect
 
 - **Localization** — every user-facing string externalized, keys present in every
   locale file the profile lists
@@ -121,22 +145,40 @@ live where new code meets old.
 
 ### 3. Classify
 
-- **CRITICAL** 🔴 — blocks approval
-- **ARCHITECTURAL** 🟠 — blocks approval
-- **BUG** 🟡 — blocks approval
-- **QUALITY** 🟢 — should fix; explain the tradeoff if skipping
+Every finding is either **Important** or a **Nit**:
+
+- **Important** — blocks approval. Covers the 🔴 Critical, 🟠 Architectural and
+  🟡 Correctness sections, compliance-pass divergences, and a failed failing-test-first
+  check. Keep the section as a sub-label: CRITICAL, ARCHITECTURAL, BUG.
+- **Nit** — 🟢 Quality items and small style points. Never blocks approval. Report at
+  most **5 Nits** per review: the most useful ones, not all of them.
+
+A missing locale key or an unhandled error is not a Nit; it is a correctness defect.
+Classify by consequence, not by the checklist heading it happened to sit under.
+
+### Failing-test-first check (bug-fix PRs)
+
+For a PR that fixes an issue labelled `bug`, verify from the commit history that:
+
+1. the commit adding the regression test comes before the commit with the fix;
+2. the test fails on its own commit — check out that commit and run it, or confirm the
+   PR description shows the failing run;
+3. the fix commit does not modify that test.
+
+A violation is **Important**. A bug that is purely visual, or otherwise impractical to
+test, is an exception only if the PR explains why. Accept a justified exception;
+reject a bare claim.
 
 ### 4. Decide
 
-**Blocking findings exist** → compile the prioritized list, **leave it on the PR**
+**Important findings exist** → compile the prioritized list, **leave it on the PR**
 using [tracker conventions](../../conventions/issue-tracker.md), and hand the list back. With a shared account,
 publish a comment with an explicit blocked verdict: formal requests for changes on
 your own PR are unavailable. After the developer's fix pass, re-review the changed
 files: are the previous findings resolved, and did the fix introduce anything new?
 
-**Quality-only findings** → list them. Send back the significant ones (a missing locale
-key is significant). Conditionally approve on genuinely minor style points, with the
-caveats stated.
+**Only Nits** → list them (at most 5) and issue ✅ **APPROVAL**, noting the Nits as
+optional follow-ups. Nits never send work back.
 
 **Nothing found** → issue an explicit ✅ **APPROVAL**, summarize what you reviewed and
 confirmed, and note any quality observations for later. Post the verdict on the PR as a
@@ -159,7 +201,7 @@ formally approving a PR you authored. See [tracker conventions](../../convention
 ### 🟡 BUG (must fix)
 ...
 
-### 🟢 QUALITY (should fix)
+### Nits (optional, max 5)
 ...
 
 Send to developer for a fix pass, then re-review.
@@ -172,6 +214,11 @@ count to be right.
 
 ## Before approving
 
+- [ ] Compliance pass done: the PR matches its design artifacts and issue acceptance
+      criteria, with no drift either way
+- [ ] Bug-fix PRs: failing-test-first check passed, or a justified exception
+- [ ] The profile's verification command passed on the reviewed head (from the PR or
+      your own run)
 - [ ] Every release gate and debug flag in the profile is correct
 - [ ] Every new user-facing string is localized in every locale file
 - [ ] Access control verified for every new restricted capability
@@ -179,7 +226,6 @@ count to be right.
 - [ ] Architecture and injection patterns followed
 - [ ] Platform minimum respected
 - [ ] No breaking change to existing persistence keys
-- [ ] The acceptance criteria in the linked issues are actually met
 
 ## Project memory
 

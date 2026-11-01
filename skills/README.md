@@ -1,6 +1,7 @@
 # Canonical pipeline skills
 
-These six skills are the single source of truth for role behavior. The
+These seven skills are the single source of truth for role behavior: six pipeline
+stages plus the standalone `production-triage`. The
 [pipeline](../PIPELINE.md) defines stage order, gates, loops, modes, and housekeeping;
 skills carry each role's engineering checks and report contract.
 
@@ -12,6 +13,7 @@ skills carry each role's engineering checks and report contract.
 | [code-reviewer](code-reviewer/SKILL.md) | Review independently and return findings or `✅ APPROVAL` |
 | [qa-tester](qa-tester/SKILL.md) | Run tests, verify criteria, classify and report bugs |
 | [settings-optimizer](settings-optimizer/SKILL.md) | Optional permission housekeeping or a standalone audit |
+| [production-triage](production-triage/SKILL.md) | Standalone: file recent production errors as `needs-triage` issues |
 
 Canonical frontmatter contains only `name` and `description`. Runtime-specific
 discovery, model choices, and subagent launching live in the

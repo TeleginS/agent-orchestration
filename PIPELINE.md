@@ -18,6 +18,7 @@ results.
 | `code-reviewer` | Reviewing the diff, blocking or approving | Fixes the code it reviews |
 | `qa-tester` | Verifying acceptance criteria, running the test suite, filing bug issues | Fixes bugs |
 | `settings-optimizer` | Consolidating the harness's local permission config | Touches app code or git state |
+| `production-triage` | Standalone, outside the eleven steps: production errors to `needs-triage` issues | Touches code. Attempts fixes. |
 
 The orchestrator runs in the main conversation. It clarifies requirements with the
 user, records the resulting design decisions, and delegates each delivery stage to a
@@ -61,6 +62,50 @@ without a profile will produce plausible-looking work against invented conventio
 **Precedence, always:** observed code > active profile > role prompt. Profiles drift;
 the repository does not. When a role finds the profile contradicting the code, it
 follows the code and flags the drift in its report.
+
+## Human gates
+
+The owner sits at exactly three decision points. Everything between them runs without
+the owner.
+
+| Gate | Who passes it | What the agents do |
+|---|---|---|
+| **Design decision** — accepting a clarified requirement or decision record | Owner, in Step 0 | Ask, record what was agreed, never invent it |
+| **Merge** — the PR into the base branch | Owner | Leave the PR open; a verdict is a PR comment |
+| **Release** — publishing a build or package | Owner | Build and archive for checks; never upload or publish |
+
+Skills are advisory: a model can misread or skip an instruction. So the merge and
+release gates are also **enforced deterministically** wherever the host allows it —
+pre-tool hooks in the agent harness, a tracked git `pre-push` hook, and server-side
+branch rules where the tracker plan has them. See [`gates/`](gates/README.md) for
+ready-made hooks. A blocked command is the gate working: the agent stops and reports
+it, and never routes around it through another tool.
+
+## Definition of done
+
+The profile names one **verification command** that every role treats as "done":
+build, tests and the project's cheap static checks, exiting non-zero on any failure
+and printing a short summary rather than raw tool logs. The developer runs it before
+reporting, QA runs its fullest variant before any verdict, and the reviewer does not
+repeat as findings what it already enforces. A profile without one falls back to its
+build and test commands; writing the script is usually the first improvement worth
+making when adopting the pipeline.
+
+## Artifact chain
+
+Each stage leaves a durable record the next one reads. The pipeline maps that chain
+onto artifacts most projects already have rather than adding new file types:
+
+| Link | Artifact |
+|---|---|
+| Intent | Step 0 clarification, recorded as a decision record and glossary terms |
+| Specification | Decision records plus an optional plan file next to them |
+| Plan | Tracker issues from the planner, each with acceptance criteria |
+| Change | The PR, with review and QA findings on it |
+| Feedback | Production errors filed as `needs-triage` issues (see [Production feedback](#production-feedback)) |
+
+Minimum linkage: an issue cites its decision record or plan; a PR cites its issues.
+The reviewer's compliance pass reads both ends.
 
 ---
 
@@ -129,7 +174,9 @@ The orchestrator does this itself. It is a git operation, not implementation.
 
 Launch `developer` with: the original task text, the issue URLs, the branch name (work
 **only** on it), an instruction to read each issue from the tracker rather than
-guessing, and an instruction to open a PR when the implementation is done.
+guessing, and an instruction to open a PR when the implementation is done. The
+developer runs the profile's verification command before reporting and puts its
+summary in the PR; bug fixes start from a committed failing test.
 
 **Transition criterion:** the PR exists and its number is collected.
 
@@ -137,21 +184,23 @@ guessing, and an instruction to open a PR when the implementation is done.
 
 Fetch the base branch first so the diff is computed against a fresh base.
 
-Launch `code-reviewer` with the PR number, the original task, and the issue URLs for
-acceptance criteria. The reviewer reads the actual diff, not a summary of it, and
-**leaves its findings on the PR** rather than only returning them to the orchestrator.
+Launch `code-reviewer` with the PR number, the original task, the issue URLs for
+acceptance criteria, and the design artifact paths for its compliance pass. The
+reviewer reads the actual diff, not a summary of it, and **leaves its findings on the
+PR** rather than only returning them to the orchestrator.
 
 ```
-  ┌─ CRITICAL / ARCHITECTURAL / BUG found
+  ┌─ Important findings (CRITICAL / ARCHITECTURAL / BUG, compliance drift)
   │     → developer fix pass (same branch, no new PR)
+  │     → orchestrator checks the claimed fixes against the fix commit
   │     → re-review
   └─ back to the top, until APPROVAL
 ```
 
-- Blocking findings → orchestrator relaunches `developer` with the complete finding
+- Important findings → orchestrator relaunches `developer` with the complete finding
   list, the PR number, and an explicit "do not open a new PR".
-- Quality-only findings → send the significant ones back; note the trivial ones and
-  conditionally approve.
+- Nits only (at most 5) → **APPROVAL**; the Nits go to the final report as optional
+  follow-ups and never start a fix pass.
 - Clean → **APPROVAL**, go to Step 5.
 
 **Guardrail:** at most 3 iterations. Still blocked after the third → STOP and escalate
@@ -170,8 +219,8 @@ the developer's implementation summary, and the PR number.
 QA verifies every acceptance criterion, hunts for bugs by its own methodology, and
 files a tracker issue for **every** bug found — including ones it will not fix.
 
-**Mandatory gate:** QA runs the project's test suite (command in the active profile)
-before reaching any verdict. Failures or skips become bug issues. The suite is re-run
+**Mandatory gate:** QA runs the profile's verification command in its fullest variant
+(or the test suite command when the profile has none) before reaching any verdict. Failures or skips become bug issues. The suite is re-run
 after every fix pass.
 
 ## Step 6 — Bug-fix loop
@@ -267,8 +316,8 @@ task's authorization. Report settings or memory deliberately left local.
 
 ## Step 10 — Final report
 
-- What was implemented, and the PR number/URL
-- Review status
+- What was implemented, and the PR number/URL — left open for the owner's merge
+- Review status, plus any Nits left as optional follow-ups
 - QA status, including the test suite result
 - Artifact commit summary — what was committed, what was deliberately left and why
 - Issue cleanup summary — closed, and left open on purpose with the reason
@@ -297,6 +346,18 @@ task's authorization. Report settings or memory deliberately left local.
     green.** QA bug fixes are code, and unreviewed code is how a green QA run ships a
     regression.
 12. Loops are capped at 3 iterations, then escalate.
+13. No agent merges, pushes to the base branch, force-pushes, or publishes a release.
+    Those are the owner's [human gates](#human-gates); a blocked attempt is reported,
+    never retried another way.
+
+## Production feedback
+
+The [`production-triage`](skills/production-triage/SKILL.md) skill closes the loop
+from a running product back to the tracker. It is a standalone stage, run manually (or
+on a schedule once a few manual runs have been checked): it reads the error source
+named in the profile for a recent window, de-duplicates against open issues, and files
+new or widespread errors as `needs-triage` issues. It is read-only on code and never
+attempts a fix. A triaged issue enters this pipeline like any other task, at Step 0.
 
 ## Dry-run mode
 

@@ -16,7 +16,7 @@ if [ -L .claude/skills ]; then
   printf '%s\n' 'Existing .claude/skills symlink: follow the migration instructions first.'
 else
   mkdir -p .claude/skills
-  for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer; do
+  for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage; do
     if [ -e ".claude/skills/$role" ] || [ -L ".claude/skills/$role" ]; then
       printf 'Preserving existing skill: %s\n' "$role"
     else
@@ -51,11 +51,22 @@ and unrelated agents. Update project instructions that still say to launch
 `ai-orchestrator` through the Agent tool. Migrate existing role memory using the
 [shared memory guidance](../../memory/README.md).
 
+## Gate hooks
+
+[`hooks/`](hooks/) holds host wiring and compatibility entry points. The shared
+`PreToolUse` implementation in [`gates/hooks/`](../../gates/hooks/) enforces the owner's
+merge and release gates and checks configured secret paths. Wire them into the project's
+tracked `.claude/settings.json` following [`gates/README.md`](../../gates/README.md); run the
+self-test first, because a broken `PreToolUse` hook blocks every later tool call.
+
 ## Run
 
 ```text
 /orchestrator Task: <the task>. Active profile: /absolute/project/profile.md
 ```
+
+`production-triage` runs on its own (`/production-triage`), not as a pipeline step; it
+needs the error-source tool named in the profile (for example, an MCP server).
 
 The main conversation can resolve product questions with the user before delegating.
 It invokes stage skills through the native Skill tool and supplies the complete handoff
@@ -72,6 +83,7 @@ behavior. The mode, gates and stop conditions come from the canonical pipeline.
 | `code-reviewer` | `sonnet` |
 | `qa-tester` | `sonnet` |
 | `settings-optimizer` | `haiku` |
+| `production-triage` | `sonnet` |
 
 These preserve the previous adapter defaults. Change model metadata in the installed
 Claude wrappers to configure this host; do not change canonical skills. Respect an

@@ -116,7 +116,13 @@ One per subtask:
 
 ## Epic
 Part of #NN ([epic name])
+
+## Source
+[Decision record or plan file this issue implements, or "no design artifacts applied"]
 ```
+
+Every issue cites its decision record or plan in **Source**: the reviewer's compliance
+pass reads the PR against it, and the PR cites the issue, so the chain stays linked.
 
 Labels, created if they don't exist: `epic:<name>` for grouping, `size:S|M|L|XL`, and
 `blocked` if a dependency is unmet at creation time.
@@ -162,6 +168,15 @@ their original form regardless.
 - **Not enough context to decompose properly** → return the concrete unresolved
   questions before creating issues. If an overview already exists, identify it in the
   blocked report; do not present it as a completed plan or invent child issues over a gap.
+- **A step only the owner can do** (a dashboard setting, a paid-plan feature, a
+  credential, enabling a hook per clone) → its own child issue with the
+  `ready-for-human` triage label, not `ready-for-agent`, saying in the body that it is
+  not for the developer.
+- **Two children edit the same file** (shared instructions, a config) → give them a
+  real `Blocked by` edge, even when the logic is independent; parallel edits to one
+  file conflict.
+- **A fact in the design artifact looks precise** (a count, a limit, a version) → check
+  it against the code or data before copying it into criteria; plans go stale too.
 - **Tracker unavailable or unauthenticated** → say so and output the full issue
   structure as markdown so it can be created by hand.
 

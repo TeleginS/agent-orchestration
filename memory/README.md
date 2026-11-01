@@ -14,7 +14,8 @@ to the adopting project; this library ships only the [shared rules](RULES.md).
 ├── developer/
 ├── code-reviewer/
 ├── qa-tester/
-└── settings-optimizer/
+├── settings-optimizer/
+└── production-triage/
 ```
 
 Every canonical skill explicitly reads `memory/RULES.md` from the library, then its

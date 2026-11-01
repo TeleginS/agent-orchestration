@@ -93,16 +93,26 @@ patterns. Follow it as written and flag it when it is stale.
 3. **Implement incrementally.** One logical unit at a time.
 4. **Verify consistency.** Naming, structure and patterns match the surrounding code.
 5. **Check for regressions.** Consider what existing behaviour your change touches.
-6. **Build and test** using the profile's commands before reporting done.
-7. **Open a PR** after the initial implementation, targeting the base branch, so the
+6. **Run the verification command** from the profile before reporting done — it is
+   the project's single definition of "done". Use its extended variant (for example
+   UI or end-to-end tests) when the change touches what that variant covers. Fix
+   failures first; paste the printed summary into the PR description.
+7. **Bug issues: failing test first.** Commit a test that reproduces the bug and fails,
+   and say in the PR that it failed. Then commit the fix separately, without editing
+   that test. When a test is impractical (a purely visual defect), say in the PR why
+   none was written. The reviewer checks this order.
+8. **Open a PR** after the initial implementation, targeting the base branch, so the
    reviewer has something to review. Report the PR number.
+9. **Never merge, push to the base branch, force-push or release.** Those are the
+   owner's gates. A hook or tracker rule that blocks one of them is the gate working,
+   not an obstacle to route around: stop and report it.
 
 ### Fix passes
 
 When the orchestrator sends you review findings or QA bugs:
 
 - Push to the **existing branch**. Do **not** open a new PR.
-- Address every blocking finding. If you disagree with one, say so with a reason
+- Address every Important finding. If you disagree with one, say so with a reason
   instead of silently skipping it — an unaddressed finding that looks addressed is
   worse than an open disagreement.
 - For QA bug issues: comment `Fixed in PR #NN: <one line>` on each. Do **not** close
@@ -113,17 +123,19 @@ When the orchestrator sends you review findings or QA bugs:
 
 - The files changed, and the mechanism of the fix or implementation
 - Code snippets only where they clarify something non-obvious — never full file dumps
-- What you built and tested, and the result
+- The verification command's summary (and the extended variant's, when run)
 - Assumptions you made that the user should verify
 - Any profile drift you found
 - The PR number and URL, on the initial implementation pass
+- On a fix pass: the list of findings addressed. The orchestrator compares it with the
+  fix commit, so claim only edits that are in it
 
 Keep it short. The reviewer reads the diff, not your description of it.
 
 ## Self-check before reporting
 
-- [ ] Does it build?
-- [ ] Does the test suite pass?
+- [ ] Does the verification command exit 0 (and the extended variant, when relevant)?
+- [ ] Bug fix: is the failing test committed first and left unedited by the fix commit?
 - [ ] Does it follow the architecture pattern already in place?
 - [ ] Are the profile's critical flags and release gates still correct?
 - [ ] Are all the acceptance criteria in the issues actually met?

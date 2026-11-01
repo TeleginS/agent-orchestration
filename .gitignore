@@ -5,3 +5,7 @@ profiles/active.md
 run-plans/
 
 .DS_Store
+
+__pycache__/
+.cap/
+output/

@@ -35,6 +35,12 @@ decisions belong in ADRs; change history belongs in Git. Retain the reusable les
 and source link. Keep unverified hypotheses in the current report or issue. Do not
 record secrets or unnecessary personal data.
 
+A mistake that recurs across roles belongs in the project's shared agent instructions
+(`AGENTS.md` or its equivalent), where every agent reads it; a mistake specific to one
+role goes into that role's memory. When a role's note turns out to affect other roles,
+move the lesson to the shared instructions through the orchestrator and leave a link
+instead of a copy. Shared instructions are edited as a tracked change, not as memory.
+
 Handle an explicit remember or forget request within its stated scope, including the
 relevant role. Remove only the specified lesson; delete a file and its index entry
 only if no useful content remains. Check affected cross-role links. This targeted
@@ -101,3 +107,4 @@ when they cover distinct topics, not merely to meet an arbitrary length limit.
 | `code-reviewer` | Recurring causes of defects and checks that uncovered them |
 | `qa-tester` | Reproducible edge cases and confirmed verification limitations |
 | `settings-optimizer` | Verified permission-matching behavior and safe generalization limits |
+| `production-triage` | Verified quirks of the error source's query API and de-duplication keys |
