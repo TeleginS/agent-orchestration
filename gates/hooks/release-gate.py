@@ -6,8 +6,10 @@ Blocks every command matching a `release_commands` rule in gates.json:
   {"command": "npm", "args": ["publish"]}          npm with the positional word `publish`
   {"command": "altool", "flag_prefix": "--upload"} altool with a flag starting --upload
 `args` must appear in order among the non-flag arguments; when both `args` and
-`flag_prefix` are given, both must hold. Launch prefixes are unwrapped first:
-`xcrun X`, `bundle exec X`, `npx X`, `pnpx X`. With no rules, nothing is blocked.
+`flag_prefix` are given, both must hold. Launch prefixes are unwrapped first: `xcrun X`,
+`bundle exec X`, `npx X`, `pnpm exec X`, `uvx X`, `uv run X`, `pipx run X`, `poetry run X`.
+A version suffix (`npm@latest`) is ignored. When the arguments come from stdin through
+`xargs`, the command name alone decides. With no rules, nothing is blocked.
 """
 import os
 import sys
@@ -20,21 +22,41 @@ MSG = (
     "Blocked by release-gate: %s. Publishing a release is the owner's gate. "
     "Build and verify locally; the owner runs the upload."
 )
-LAUNCHERS = {"xcrun": {"--sdk", "-sdk", "--toolchain", "-toolchain"}, "npx": {"-p", "--package"},
-             "pnpx": set(), "bundle": set()}
+# launcher -> options that take a value
+LAUNCHERS = {"xcrun": {"--sdk", "-sdk", "--toolchain", "-toolchain"}, "npx": {"-p", "--package", "-c", "--call"},
+             "pnpx": set(), "bundle": set(), "bundler": set(), "pnpm": set(), "yarn": set(), "npm": set(),
+             "uvx": {"--from", "--with", "-p", "--python"}, "uv": {"--with", "-p", "--python"},
+             "pipx": {"--spec", "--python"}, "poetry": set()}
+# launchers that run a command only after one of these words (`bundle exec`, `uv run`)
+SUBWORDS = {"bundle": {"exec"}, "bundler": {"exec"}, "pnpm": {"exec", "dlx"}, "yarn": {"exec", "dlx"},
+            "npm": {"exec"}, "uv": {"run"}, "pipx": {"run"}, "poetry": {"run"}}
+
+
+def base_command(tok):
+    """`./node_modules/.bin/npm@latest` -> `npm`."""
+    name = os.path.basename(tok).lower()
+    return name if name.startswith("@") else name.split("@", 1)[0]
 
 
 def unwrap(seg):
     """`xcrun --sdk x altool ...` -> ["altool", ...]; `bundle exec fastlane` -> ["fastlane"]."""
     seg = list(seg)
     for _ in range(4):
-        head = os.path.basename(seg[0]).lower()
+        head = base_command(seg[0])
+        subwords = SUBWORDS.get(head, set())
         if head not in LAUNCHERS:
             break
-        rest, value_flags, i = seg[1:], LAUNCHERS[head], 0
-        while i < len(rest) and (rest[i].startswith("-") or (head == "bundle" and rest[i] == "exec")):
-            i += 2 if rest[i] in value_flags else 1
-        if i >= len(rest):
+        rest, value_flags, i, sub_seen = seg[1:], LAUNCHERS[head], 0, False
+        while i < len(rest):
+            if rest[i] in subwords and not sub_seen:
+                sub_seen = True
+            elif rest[i].startswith("-"):
+                i += 1 if rest[i] not in value_flags else 2
+                continue
+            else:
+                break
+            i += 1
+        if i >= len(rest) or (subwords and not sub_seen):
             break
         seg = rest[i:]
     return seg
@@ -45,9 +67,11 @@ def subsequence(needle, haystack):
     return all(word in it for word in needle)
 
 
-def matches(rule, seg):
-    if os.path.basename(seg[0]).lower() != rule["command"].lower():
+def matches(rule, seg, stdin_args=False):
+    if base_command(seg[0]) != rule["command"].lower():
         return False
+    if stdin_args:
+        return True  # the decisive arguments may arrive on stdin
     rest = seg[1:]
     if rule.get("args") and not subsequence(rule["args"], [a for a in rest if not a.startswith("-")]):
         return False
@@ -70,9 +94,9 @@ def main():
     if not rules:
         sys.exit(0)
     for seg in segments(command):
-        seg = unwrap(seg)
+        inner = unwrap(seg)
         for rule in rules:
-            if matches(rule, seg):
+            if matches(rule, inner, seg.stdin_args):
                 block(MSG % describe(rule))
     sys.exit(0)
 

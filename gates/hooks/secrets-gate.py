@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""PreToolUse(Read/Edit/Write/Bash/apply_patch): protect configured secret files.
+"""PreToolUse(Read/Edit/Write/Grep/Bash/apply_patch): protect configured secret files.
 
 A secret name is a basename or fnmatch pattern from `secret_names`; `<name>.<suffix>`
-variants (`.env.local`) match too. Names in `secret_allow` (`.env.example`) stay
-readable. In Bash, the grep pattern argument and git pathspecs after `--` are not
-treated as files; `ls`, `stat`, `test` and `git check-ignore` do not read contents.
+variants (`.env.local`) match too, and matching ignores case because the usual macOS file
+system does. Names in `secret_allow` (`.env.example`) stay readable. In Bash, the grep
+pattern argument and git pathspecs after `--` are not treated as files; `ls`, `stat`, `test`
+and `git check-ignore` do not read contents. Shell globs (`.env*`, `*.p8`), brace expansions
+(`.{env,}`), redirections (`0<.env`) and `<rev>:<path>` forms are resolved before matching.
 """
 import fnmatch
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config  # noqa: E402
-from lib import block, read_payload, segments  # noqa: E402
+from lib import block, expand_braces, read_payload, segments  # noqa: E402
 
 MSG = (
     "Blocked by secrets-gate: %s is closed to agents. The owner sets secrets locally; "
@@ -22,47 +25,54 @@ MSG = (
 NON_READING = {"ls", "stat", "test", "[", "[["}
 GREP_LIKE = {"grep", "egrep", "fgrep", "rg", "ag"}
 GREP_VALUE_FLAGS = {"-e", "-f", "-m", "-A", "-B", "-C", "--regexp", "--file", "--max-count",
-                    "--include", "--exclude", "--exclude-dir", "-g", "--glob", "-t", "--type"}
+                    "--include", "--exclude", "--exclude-dir", "-g", "--glob", "--iglob", "-t", "--type"}
+# Values of these flags select files to read, so they are checked like file arguments
+GREP_FILE_FLAGS = {"-f", "--file", "--include", "-g", "--glob", "--iglob"}
 HISTORY_SUBCOMMANDS = {"log", "diff", "show", "shortlog", "whatchanged", "rev-list", "status", "ls-files"}
 GLOB_CHARS = "*?["
+_REDIRECT = re.compile(r"^\d*[<>&|]+")
 
 
 class Secrets:
     def __init__(self, cfg):
-        self.names = list(cfg["secret_names"])
-        self.allow = set(cfg["secret_allow"])
+        self.names = [n.lower() for n in cfg["secret_names"]]
+        self.allow = {a.lower() for a in cfg["secret_allow"]}
         self.literals = [n for n in self.names if not any(c in n for c in GLOB_CHARS)]
 
     def is_secret_name(self, name):
+        name = name.lower()
         if not name or name in self.allow:
             return False
         return any(fnmatch.fnmatchcase(name, n) or name.startswith(n + ".") for n in self.names)
 
     def matches_glob(self, name):
-        """A shell glob in the command (`.env*`) that would expand to a secret.
+        """A shell glob in the command (`.env*`, `*.p8`, `[S]ecrets.xcconfig`) that expands to a secret.
 
-        Only globs with a literal prefix count: a bare `*` would block every `grep foo *`.
+        The pattern needs a literal letter or digit: a bare `*` would block every `grep foo *`.
+        Like the shell, a leading wildcard does not match a leading dot.
         """
-        first = min((name.find(c) for c in GLOB_CHARS if c in name), default=-1)
-        if first <= 0:
+        name = name.lower()
+        if not any(c in name for c in GLOB_CHARS) or not re.search(r"[a-z0-9]", re.sub(r"\[[^\]]*\]", "", name)):
             return False
-        prefix = name[:first]
-        return any(s.startswith(prefix) and fnmatch.fnmatchcase(s, name) for s in self.literals)
+        return any(fnmatch.fnmatchcase(s, name) for s in self.literals
+                   if not (s.startswith(".") and name[0] in GLOB_CHARS))
 
     def token_hits(self, tok):
-        for part in {tok, tok.split("=", 1)[-1], tok.lstrip("<>")}:
-            name = os.path.basename(part.rstrip("/"))
-            if self.is_secret_name(name) or self.matches_glob(name):
-                return True
+        for word in expand_braces(tok):
+            parts = {word, word.split("=", 1)[-1], _REDIRECT.sub("", word), word.rsplit(":", 1)[-1]}
+            for part in parts:
+                name = os.path.basename(part.rstrip("/"))
+                if self.is_secret_name(name) or self.matches_glob(name):
+                    return True
         return False
 
 
 def short_cluster_value(a):
-    """For `-efoo`, `-rnefoo`, `-rne`: (flag e/f, attached value) or None."""
+    """For `-efoo`, `-rnefoo`, `-rne`, `-g.env`: (flag letter e/f/g, attached value) or None."""
     if len(a) < 2 or a[0] != "-" or a[1] == "-":
         return None
     for i, ch in enumerate(a[1:], 1):
-        if ch in "ef":
+        if ch in "efg":
             return ch, a[i + 1:]
     return None
 
@@ -76,20 +86,20 @@ def tokens_to_check(seg):
     if head in GREP_LIKE:
         args = seg[1:]
         explicit = any(a in {"-e", "--regexp", "-f", "--file"} or a.startswith(("--regexp=", "--file="))
-                       or short_cluster_value(a) for a in args)
+                       or (short_cluster_value(a) or ("",))[0] in {"e", "f"} for a in args)
         skip_pattern = not explicit
         out, flag = [], None
         for a in args:
             if flag:
-                if flag in {"-f", "--file"}:  # a pattern file is read
+                if flag in GREP_FILE_FLAGS:  # a pattern file or an include glob is read
                     out.append(a)
                 flag = None
             elif a.startswith("-") and a != "-":
                 cluster = short_cluster_value(a)
                 if cluster and a not in GREP_VALUE_FLAGS:
                     letter, attached = cluster
-                    if attached:  # -efoo / -ffile: the value is attached
-                        if letter == "f":
+                    if attached:  # -efoo / -ffile / -g.env: the value is attached
+                        if letter in "fg":
                             out.append(attached)
                     else:  # -rne: the value is the next argument
                         flag = "-" + letter
@@ -141,9 +151,13 @@ def main():
             if secrets.is_secret_name(name):
                 block(MSG % path)
     else:
-        path = tin.get("file_path") or tin.get("notebook_path") or ""
+        # Read/Edit/Write/MultiEdit use file_path, NotebookEdit notebook_path, Grep path (+ glob)
+        path = tin.get("file_path") or tin.get("notebook_path") or tin.get("path") or ""
         if path and secrets.is_secret_name(os.path.basename(path)):
             block(MSG % path)
+        pattern = tin.get("glob") or ""
+        if pattern and secrets.token_hits(pattern):
+            block(MSG % pattern)
     sys.exit(0)
 
 

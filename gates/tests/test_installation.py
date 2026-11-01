@@ -89,9 +89,12 @@ class InstalledGates(unittest.TestCase):
                                   {"command": "*** Begin Patch\n" + header + "\n*** End Patch"}, blocked)
 
     def test_claude_file_wiring(self):
-        for tool in ("Read", "Edit", "Write", "MultiEdit", "NotebookEdit"):
+        for tool, key in (("Read", "file_path"), ("Edit", "file_path"), ("Write", "file_path"),
+                          ("MultiEdit", "file_path"), ("NotebookEdit", "notebook_path"), ("Grep", "path")):
             with self.subTest(tool=tool):
-                self.check_wiring("claude", tool, {"file_path": str(self.project / ".env")}, True)
+                self.check_wiring("claude", tool, {key: str(self.project / ".env"), "pattern": "KEY"}, True)
+        self.check_wiring("claude", "Grep", {"pattern": "KEY", "path": str(self.project), "glob": ".env*"}, True)
+        self.check_wiring("claude", "Grep", {"pattern": "KEY", "path": str(self.project / "src")}, False)
 
     def test_adjacent_config_is_host_specific(self):
         # A Claude project variable must not redirect Codex to Claude's rules.
