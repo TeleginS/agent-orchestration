@@ -8,3 +8,4 @@ run-plans/
 
 __pycache__/
 .cap/
+output/
