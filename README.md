@@ -3,7 +3,8 @@
 A delivery pipeline built from reusable skills that you can point at any codebase.
 One task in, one reviewed and QA'd pull request out.
 
-Six canonical skills, eleven steps, two loops with guardrails. The orchestrator stays
+Six pipeline skills, eleven steps, two loops with guardrails, three human gates — plus a
+standalone triage skill that feeds production errors back into the tracker. The orchestrator stays
 in the main conversation, clarifies requirements with you, and delegates planning,
 implementation, review, and QA to separate subagents.
 
@@ -84,7 +85,8 @@ remote — and treat your first live run as a shakedown.
 - **[PIPELINE.md](PIPELINE.md)** — the runbook: every step, its transition criterion,
   the strict rules
 - **[PIPELINE-GRAPH.md](PIPELINE-GRAPH.md)** — the same thing as a state diagram
-- **[skills/](skills/)** — the six canonical skills
+- **[skills/](skills/)** — the six pipeline skills and the standalone `production-triage`
+- **[gates/](gates/)** — hooks that enforce the owner's merge and release gates
 - **[profiles/](profiles/)** — the one file you write to adopt this
 - **[adapters/](adapters/)** — Claude Code, Codex, generic harness
 - **[docs/talks/](docs/talks/)** — two 20-minute Manychat meetup plans in Russian
@@ -147,6 +149,7 @@ scope and mode you supplied; selecting a stage does not start the full pipeline.
 | `code-reviewer` | Reviewing the diff, blocking or approving | Fixes what it reviews |
 | `qa-tester` | Acceptance criteria, the test suite, filing bugs | Fixes bugs |
 | `settings-optimizer` | Consolidating the harness's permission config | Touches code or git |
+| `production-triage` | Filing production errors as `needs-triage` issues (standalone, manual) | Touches code. Fixes anything. |
 
 ## Rules worth knowing before you run it
 
@@ -155,6 +158,20 @@ A handful of these exist because the obvious behaviour is the wrong one:
 **Every code change made after QA begins passes review before QA can be called green.**
 QA bug fixes are code. Skipping the review on them is how an unreviewed change ships
 under a green verdict.
+
+**You hold three gates; agents hold everything between them.** Accepting a design
+decision, merging the PR, and publishing a release are yours. The rest runs without
+you. Instructions alone are advisory, so the merge and release gates are also enforced
+by hooks ([`gates/`](gates/)) — an agent that tries to merge is stopped, not trusted.
+
+**One command defines "done".** The profile names a verification command — build,
+tests, cheap static checks, a short summary. The developer runs it before reporting,
+QA runs its fullest variant, and the reviewer doesn't re-report what it enforces.
+
+**Review checks the change against what was asked.** A compliance pass compares the
+PR with its decision records and issue criteria, both ways: missing work and work
+nobody asked for. Findings are Important (blocking) or Nits (at most five, never
+blocking). Bug fixes start from a failing test committed before the fix.
 
 **Loops cap at three iterations, then stop and escalate.** A review loop that hasn't
 converged in three passes is telling you the task is under-specified or the finding is

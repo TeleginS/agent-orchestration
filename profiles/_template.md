@@ -36,9 +36,28 @@ Where things live, and the names that mislead.
 - **Naming trap**: <e.g. the directory is `app/` but the module is named `web` — the
   kind of mismatch that costs an agent three wrong greps>
 
+## Verification command
+
+The single definition of "done". The developer runs it before reporting, QA runs the
+fullest variant before any verdict, and the reviewer does not re-report what it checks.
+It exits non-zero on any failure and prints a short summary, not raw tool logs.
+
+```bash
+<script>            # e.g. lint + locale-key parity, build, unit tests
+<script> --full     # the slower variant: UI / end-to-end tests
+```
+
+- **What it enforces**: <the checks, so the reviewer can exclude them>
+- **Healthy output**: <two or three lines of a passing run>
+- **Typical duration**: <so agents pick a long enough timeout and run it in the foreground>
+
+Write "None — use the build and test commands below" if the project has no such script
+yet; adding one is usually the first improvement worth making.
+
 ## Commands
 
-Exact, copy-pasteable, including any prefix this machine requires.
+Exact, copy-pasteable, including any prefix this machine requires. Use these for
+targeted debugging; the verification command above is the definition of "done".
 
 ```bash
 # Build
@@ -78,6 +97,20 @@ Things that must never ship wrong. The reviewer and QA check these every pass.
 - <Placeholder URLs, keys or endpoints that must be real before release>
 - <Configuration that must be set in an external dashboard>
 
+## Human gates
+
+What the owner alone does, and how it is enforced. See `gates/README.md` in the library.
+
+- **Merge**: <who merges; protected branch names>
+- **Release**: <the commands that publish a build or package, which agents must never
+  run — e.g. a store upload tool, `npm publish`, a deploy command>
+- **Secrets**: <files agents must never read — e.g. `.env`, a secrets config — and the
+  example file they may read instead>
+- **Enforcement installed**: <harness hooks, git pre-push via `core.hooksPath`,
+  server-side branch rules — or "none yet">
+- **Known exceptions**: <e.g. a release script that pushes a version bump straight to
+  the base branch, and the allow-script that permits only that>
+
 ## Access control / gating rules
 
 The exact limits, if the product has them. Vague gating rules produce vague QA.
@@ -101,6 +134,13 @@ Stack-specific items the reviewer adds to the universal checklist in
 - 🟡 **Correctness**: <...>
 - 🟢 **Quality**: <...>
 
+## Review exclusions
+
+Paths and content the reviewer skips: generated code, bulk data or content files,
+binary fixtures. Checks enforced by the verification command are excluded already.
+
+- <path or glob> — <why>
+
 ## Anti-patterns
 
 Code smells specific to this stack, beyond the universal list in `skills/developer/SKILL.md`.
@@ -112,6 +152,16 @@ Code smells specific to this stack, beyond the universal list in `skills/develop
 Where bugs keep coming from. QA starts here.
 
 - <component> — <the failure mode it has a history of>
+
+## Production error source
+
+Where `production-triage` reads errors. Write "None" if the project has no production
+error tracking yet.
+
+- **Tool**: <e.g. an error-tracking MCP server or CLI, and the project/environment id>
+- **Window**: <default 7 days>
+- **Threshold**: <new in the window, or at least N affected users — default 3>
+- **Filters to keep**: <e.g. exclude internal and test accounts>
 
 ## Output language
 

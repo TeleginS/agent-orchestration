@@ -5,3 +5,5 @@ profiles/active.md
 run-plans/
 
 .DS_Store
+
+__pycache__/

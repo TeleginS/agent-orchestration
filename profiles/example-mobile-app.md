@@ -44,6 +44,23 @@ habitat/
 - **Naming trap**: business rules live in `domain/`, not in `data/`. The repositories in
   `data/` are thin and must stay that way.
 
+## Verification command
+
+```bash
+scripts/verify.sh           # string-resource lint + key parity, assembleDebug, unit tests
+scripts/verify.sh --full    # additionally connectedDebugAndroidTest on the first device
+```
+
+- **What it enforces**: `strings.xml` well-formedness and identical key sets across
+  `values/`, `values-es/`, `values-ru/`; ktlint; the debug build; unit tests.
+- **Healthy output**:
+  ```text
+  strings   OK   412 keys, en/es/ru match
+  unit      OK   passed: 318, failed: 0
+  Result: OK
+  ```
+- **Typical duration**: ~4 minutes; `--full` ~15 minutes with an emulator running.
+
 ## Commands
 
 ```bash
@@ -94,6 +111,18 @@ adb devices -l
 - The billing SDK's product catalog must have the current offering flagged active in the
   vendor dashboard — a release with no active offering shows an empty paywall.
 
+## Human gates
+
+- **Merge**: the owner merges into `main`; agents leave PRs open.
+- **Release**: `./gradlew publishReleaseBundle` and `fastlane supply` upload to the
+  store — agents never run them. `./gradlew bundleRelease` for a build check is fine.
+- **Secrets**: `keystore.properties` and `.env` are off-limits;
+  `keystore.properties.example` shows the shape.
+- **Enforcement installed**: Claude Code gate hooks with `gates.json`
+  (`protected_branches: ["main"]`, release commands above), and `pre-push` through
+  `core.hooksPath`. The free tracker plan has no branch rules.
+- **Known exceptions**: None.
+
 ## Access control / gating rules
 
 - **Habit tracking**: unlimited, free
@@ -123,6 +152,11 @@ adb devices -l
 - 🟢 **Quality**: all three `strings.xml` updated; `LazyColumn` for unbounded lists;
   `minSdk 26` respected without an `@RequiresApi` escape hatch
 
+## Review exclusions
+
+- `app/src/main/assets/content/*.json` — lesson content edited by the content team
+- `app/schemas/` — generated Room schema snapshots
+
 ## Anti-patterns
 
 - `remember` holding state that belongs in the `ViewModel` — it dies on rotation
@@ -137,6 +171,14 @@ adb devices -l
 - `QuotaStore` — day-boundary resets have regressed twice
 - `BillingManager` — async purchase callbacks race with screen initialization
 - Instrumented tests — flaky on cold emulator boots; re-run once before filing a bug
+
+## Production error source
+
+- **Tool**: the error-tracking MCP server, project `habitat-android`, environment
+  `production`
+- **Window**: 7 days
+- **Threshold**: new in the window, or at least 3 affected users
+- **Filters to keep**: exclude internal test accounts (the default filter)
 
 ## Output language
 

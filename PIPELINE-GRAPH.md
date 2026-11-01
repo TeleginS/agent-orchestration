@@ -33,7 +33,7 @@ stateDiagram-v2
         direction LR
         state "code-reviewer - review diff, comment on PR" as R4
         state "developer - fixes on the same branch" as F4
-        R4 --> F4: CRITICAL / ARCHITECTURAL / BUG
+        R4 --> F4: Important findings (Nits never block)
         F4 --> R4: re-review
     }
     S4 --> STOP_REVIEW: blockers after 3 iterations

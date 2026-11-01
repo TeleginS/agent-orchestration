@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Rejects pushes to protected branches and non-fast-forward (force) pushes to any branch.
+# Merging into a protected branch is the owner's gate; this hook enforces it for every
+# tool on this machine (Claude Code, Codex, other harnesses, manual commands).
+#
+# Settings (per clone, in git config):
+#   agent-gates.protectedBranch  repeatable; default: main and master
+#   agent-gates.allowBasePush    optional executable, relative to the repository root;
+#                                called as `<remote_sha> <local_sha> <branch>` for a
+#                                fast-forward push to a protected branch; exit 0 allows it
+# Activation, once per clone, by the owner: git config core.hooksPath <tracked hooks dir>
+set -u
+
+ZERO=0000000000000000000000000000000000000000
+root="$(git rev-parse --show-toplevel)"
+protected="$(git config --get-all agent-gates.protectedBranch)"
+[[ -n "$protected" ]] || protected="main
+master"
+allow="$(git config --get agent-gates.allowBasePush)"
+if [[ -n "$allow" && "$allow" != /* ]]; then
+    allow="$root/$allow"
+fi
+status=0
+
+is_protected() {
+    local b
+    while IFS= read -r b; do
+        [[ -n "$b" && "$1" == "refs/heads/$b" ]] && return 0
+    done <<< "$protected"
+    return 1
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if is_protected "$remote_ref"; then
+        branch="${remote_ref#refs/heads/}"
+        if [[ -n "$allow" && "$local_sha" != "$ZERO" && "$remote_sha" != "$ZERO" ]] \
+            && git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null \
+            && "$allow" "$remote_sha" "$local_sha" "$branch" </dev/null; then
+            continue
+        fi
+        echo "pre-push: push to $branch rejected. Merging into a protected branch is the owner's gate; leave the PR open." >&2
+        status=1
+        continue
+    fi
+    [[ "$remote_ref" == refs/heads/* ]] || continue
+    # deleting a branch or creating a new one is not a force push
+    [[ "$local_sha" == "$ZERO" || "$remote_sha" == "$ZERO" ]] && continue
+    if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        echo "pre-push: force push (non-fast-forward) to $remote_ref rejected. Only the owner force-pushes." >&2
+        status=1
+    fi
+done
+
+exit $status

@@ -1,0 +1,16 @@
+name = "production-triage"
+description = "Load the canonical production-triage skill: production errors to needs-triage issues, read-only on code."
+
+# Uncomment to override host defaults for this role.
+# model = "gpt-5.6-terra"
+# model_reasoning_effort = "medium"
+
+developer_instructions = '''Resolve the target project root from the launch context. Use the supplied absolute
+library root, or resolve <project-root>/agent-orchestration physically, following symlinks.
+
+Read <library-root>/adapters/codex/runtime.md, then
+<library-root>/skills/production-triage/SKILL.md. Apply the canonical skill to the
+supplied invocation. The canonical skill loads the shared memory rules and the target
+project's .agents/memory/production-triage/ index and relevant notes. If the profile's
+error-source tool is not available in this runtime, stop and say so; create nothing.
+'''

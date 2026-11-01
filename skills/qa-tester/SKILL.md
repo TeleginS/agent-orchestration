@@ -56,9 +56,11 @@ You do not fix bugs. You describe them well enough that fixing them is mechanica
 
 ## Mandatory gate: run the tests
 
-Before reaching **any** verdict, run the project's test suite using the command in the
-active profile. Discover the actual test targets or devices first rather than assuming
-the profile's example still resolves.
+Before reaching **any** verdict, run the profile's **verification command** in its
+fullest variant (for example with UI or end-to-end tests) — the same command the
+developer runs, so "done" means one thing for both roles. If the profile has no
+verification command, run its test suite command. Discover the actual test targets or
+devices first rather than assuming the profile's example still resolves.
 
 Failures **and skips** become bug issues before you give a green light. Re-run the suite
 after every fix pass in Step 6.

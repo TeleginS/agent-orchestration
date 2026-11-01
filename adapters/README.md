@@ -26,7 +26,7 @@ if [ -L .agents/skills ]; then
   printf '%s\n' 'Inspect the existing .agents/skills symlink and adapt link targets first.'
 else
   mkdir -p .agents/skills
-  for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer; do
+  for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage; do
     if [ -e ".agents/skills/$role" ] || [ -L ".agents/skills/$role" ]; then
       printf 'Preserving existing skill: %s\n' "$role"
     else
@@ -62,3 +62,10 @@ do not silently run a different model or execute an independent review inline.
 
 Optional settings housekeeping depends on the runtime capability and active profile.
 The canonical pipeline owns whether it runs and what dry-run means.
+
+## Enforcing the human gates
+
+Adapters launch stages; they do not by themselves stop an agent from merging or
+publishing. Install the deterministic gates from [`../gates/`](../gates/README.md):
+the git `pre-push` hook works for every host, and Claude Code additionally gets
+pre-tool hooks. Hosts without hooks rely on `pre-push` and server-side branch rules.

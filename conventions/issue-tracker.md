@@ -50,7 +50,7 @@ gh pr review <n> --request-changes
 
 When reviewer and author share an account:
 
-- **Blocking findings** → publish the complete `Code Review — Iteration N` report via
+- **Important findings** → publish the complete `Code Review — Iteration N` report via
   `gh pr comment <number> --body-file <review-file>`, with an explicit blocked verdict.
   Return the same findings to the orchestrator; a comment does not mean approval.
 - **Approval** → publish a comment opening with the literal `✅ APPROVAL`, followed by
