@@ -7,3 +7,4 @@ run-plans/
 .DS_Store
 
 __pycache__/
+.cap/
