@@ -19,9 +19,9 @@ The other two are enforced by the scripts here.
 | Script | Blocks | Lets through |
 |---|---|---|
 | [`git/pre-push`](git/pre-push) (any tool) | Pushes to protected branches; non-fast-forward pushes to any branch | Feature-branch pushes, new branches, branch deletion, a fast-forward to a protected branch that the project's allow script accepts |
-| [`merge-gate.py`](hooks/merge-gate.py) (Claude Code / local Codex) | `gh pr merge`, `gh api .../pulls/<n>/merge` and the GraphQL merge mutations, `gh alias set`, a push to a protected branch (refspec, `HEAD`, bare `git push` while on it, `...:<branch>` anywhere in a pushing command, through a configured git alias), `--force*`, `-f` in any option cluster, `+refspec`, `--mirror`, `--all`, deleting a protected branch, `git push --no-verify`, any `core.hooksPath` or `alias.*` change (`-c`, `git config`, `GIT_CONFIG_*`), a push or `gh pr`/`gh api` fed by `xargs` | Feature-branch pushes, `gh pr create/view`, `git config --get`, a fast-forward that `allow_base_push` accepts |
+| [`merge-gate.py`](hooks/merge-gate.py) (Claude Code / local Codex) | `gh pr merge`, `gh api .../pulls/<n>/merge` and the GraphQL merge mutations, `gh alias set`, a push to a protected branch (refspec, `HEAD`, bare `git push` while on it, `...:<branch>` anywhere in a pushing command, through a configured git alias), `--force*`, `-f` in any option cluster, `+refspec`, `--mirror`, `--all`, deleting a protected branch, `git push --no-verify`, changes to `core.hooksPath`, `alias.*`, `agent-gates.allowBasePush` or `agent-gates.protectedBranch` (`-c`, `git config`, `GIT_CONFIG_*`), a push or `gh pr`/`gh api` fed by `xargs` | Feature-branch pushes, `gh pr create/view`, `git config --get`, a fast-forward that `allow_base_push` accepts |
 | [`release-gate.py`](hooks/release-gate.py) (Claude Code / local Codex) | Every command that matches a `release_commands` rule, also behind `xcrun`, `bundle exec`, `npx`, `pnpm/yarn exec`, `uvx`, `uv run`, `pipx run`, `poetry run`, with a version suffix (`npm@latest`), or fed by `xargs` (then the command name alone decides) | Everything else. With no rules configured, it blocks nothing |
-| [`secrets-gate.py`](hooks/secrets-gate.py) (Claude Code / local Codex) | Read/Edit/Write/Grep and `apply_patch` (add/update/delete/move) of configured secret files, and Bash commands that open them (`cat`, `source`, `<`, `0<`, `>>`, `cp`, `grep ... file`, `grep --include`/`rg -g`, `git show <rev>:<path>`, globs like `.env*` or `*.p8`, brace expansions like `.{env,}`), ignoring letter case | `secret_allow` names, `ls`/`stat`/`test`, `git check-ignore`, the grep pattern argument, git pathspecs after `--`, globs with no literal part (`*`) |
+| [`secrets-gate.py`](hooks/secrets-gate.py) (Claude Code / local Codex) | Read/Edit/Write/Grep and `apply_patch` (add/update/delete/move) of configured secret files or children of configured directories, and Bash commands that open or overwrite them (`cat`, `source`, redirections, `cp`, `grep ... file`, `git diff/log/show` with secret paths, globs like `.env*` or `*.p8`, brace expansions like `.{env,}`), ignoring letter case | `secret_allow` names outside protected directories, `ls`/`stat`/`test` without protected redirections, metadata-only git pathspecs, the grep pattern argument, globs with no literal part (`*`) |
 
 Protected branches default to `main` and `master`. Every block exits 2 with a message
 that names the owner as the route to approval. A block is the gate working; an agent
@@ -142,8 +142,9 @@ require their own hooks or host controls; neither comes from `pre-push`.
   remote-tracking ref, which an agent can rewrite. `pre-push` compares against the
   real remote sha.
 - **The hook file itself.** An agent with write access to the tracked hooks directory
-  can edit `pre-push`. Add that directory to `secret_names` if the project needs it
-  closed, and keep the server-side branch rule as the backstop.
+  can edit `pre-push`. Add the directory name (for example `.githooks`) to
+  `secret_names` to close its children, and keep the server-side branch rule as the
+  backstop. A matching parent directory takes priority over a leaf `secret_allow` name.
 - **Release commands are a list.** The release gate blocks only what `release_commands`
   names. `python -m twine upload` or a custom deploy script needs its own rule, or a
   project-specific hook. `gh` aliases defined before the session are not resolved; the

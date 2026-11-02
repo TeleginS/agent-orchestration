@@ -63,14 +63,21 @@ class InstalledGates(unittest.TestCase):
         for host in self.groups:
             for command, blocked in (
                 ("gh pr merge 123 --squash", True),
+                ("if true; then gh pr merge 123; fi", True),
                 ("gh api -X PUT repos/o/r/pulls/123/merge", True),
                 ("git push origin HEAD:main", True),
+                ("git config agent-gates.allowBasePush /usr/bin/true", True),
                 ("npm publish", True),
+                ("if true; then npm publish; fi", True),
+                ('npx --package npm -c "npm publish"', True),
                 ("cat .env.local", True),
+                ("git diff -- .env", True),
+                ("ls > .env", True),
                 ("gh pr view 123", False),
                 ("git push origin HEAD:feature/work", False),
                 ("npm run build", False),
                 ("cat .env.example", False),
+                ("git status -- .env", False),
             ):
                 with self.subTest(host=host, command=command):
                     self.check_wiring(host, "Bash", {"command": command}, blocked)
@@ -87,6 +94,19 @@ class InstalledGates(unittest.TestCase):
             with self.subTest(header=header):
                 self.check_wiring("codex", "apply_patch",
                                   {"command": "*** Begin Patch\n" + header + "\n*** End Patch"}, blocked)
+
+    def test_secret_directory_wiring(self):
+        for host in self.groups:
+            config = self.project / ("." + host) / "hooks/gates.json"
+            config.write_text(json.dumps({"secret_names": [".env", ".githooks"]}))
+            with self.subTest(host=host):
+                self.check_wiring(host, "Bash", {"command": "cat .githooks/pre-push"}, True)
+                if host == "claude":
+                    self.check_wiring(host, "Read", {"file_path": str(self.project / ".githooks/pre-push")},
+                                      True)
+                else:
+                    self.check_wiring(host, "apply_patch", {"command":
+                                      "*** Begin Patch\n*** Update File: .githooks/pre-push\n@@\n+x\n*** End Patch"}, True)
 
     def test_claude_file_wiring(self):
         for tool, key in (("Read", "file_path"), ("Edit", "file_path"), ("Write", "file_path"),

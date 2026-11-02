@@ -42,6 +42,8 @@ STDIN_WRAPPERS = {"xargs"}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 PRINTERS = {"echo", "printf"}
 OPERATORS = {";", "&&", "||", "|", "&", "|&", "(", ")", "{", "}", "\n"}
+CONTROL_PREFIXES = {"if", "elif", "then", "else", "while", "until", "do", "!"}
+CONTROL_ENDS = {"fi", "done"}
 
 
 class Segment(list):
@@ -175,6 +177,21 @@ def _heredoc_scripts(command):
             yield body.rsplit("\n", 1)[0]
 
 
+def _launcher_scripts(seg):
+    """Shell command strings executed by npx/npm exec -c or --call."""
+    head = os.path.basename(seg[0]).split("@", 1)[0]
+    if head != "npx" and not (head == "npm" and len(seg) > 1 and seg[1] == "exec"):
+        return
+    args = seg[1:]
+    for i, arg in enumerate(args):
+        if arg in {"-c", "--call"} and i + 1 < len(args):
+            yield args[i + 1]
+        elif arg.startswith("--call="):
+            yield arg.partition("=")[2]
+        elif arg.startswith("-c") and not arg.startswith("--") and len(arg) > 2:
+            yield arg[2:]
+
+
 def segments(command, depth=0):
     """List of command segments; `bash -c "..."`, `eval`, here-strings, `echo cmd | sh` and
     heredocs piped into a shell are expanded recursively."""
@@ -184,6 +201,12 @@ def segments(command, depth=0):
         raw, operators = [command.split()], [None]
     result = []
     for i, seg in enumerate(raw):
+        # Shell control words occupy the command position. Their conditions and bodies
+        # are still commands, including when a semicolon precedes then/do.
+        while seg and seg[0] in CONTROL_PREFIXES:
+            seg = seg[1:]
+        if not seg or seg[0] in CONTROL_ENDS or seg[0] == "for":
+            continue
         seg = _strip_wrappers(seg)
         if depth < 4:
             for nested in seg.nested:  # `env -S "..."` may be the whole segment
@@ -200,6 +223,8 @@ def segments(command, depth=0):
                 result.extend(segments(script, depth + 1))
         elif head == "eval":
             result.extend(segments(" ".join(seg[1:]), depth + 1))
+        for script in _launcher_scripts(seg):
+            result.extend(segments(script, depth + 1))
     if depth < 4:
         for body in _heredoc_scripts(command):
             result.extend(segments(body, depth + 1))

@@ -46,7 +46,9 @@ the library checkout. Runtime selection and launch configuration belong to the
 ## Responsibilities
 
 1. **Verify acceptance criteria** — fetch every linked issue and check each criterion
-   against the actual behaviour. Unmet criteria become bug issues.
+   against the actual behaviour. Unmet criteria in completed, agent-owned work become
+   bug issues. Mark checks awaiting a human-owned dependency as pending; they are not
+   product bugs and cannot support a green verdict for the whole task.
 2. **Discover bugs** — defects, edge cases, race conditions, leaks, bad state handling,
    UX problems.
 3. **File everything** — a tracker issue for every bug found, in scope or not.
@@ -230,9 +232,11 @@ When asked to produce a test approach rather than a QA run:
 
 Two clearly separated lists — blocking in-scope bugs (including explicitly marked
 unconfirmed findings pending classification) and verified pre-existing bugs, both with
-issue numbers — plus the test suite result, plus an explicit verdict: **green**,
+issue numbers — plus the test suite result and tested commit, plus an explicit verdict: **green**,
 **blocked** with the in-scope list, or **blocked by environment** with the partial
-results and what would unblock it. Unconfirmed findings prevent a green verdict.
+results and what would unblock it. Use **blocked by human dependency** with the pending
+issue and missing evidence when completed agent work is verified but a required human
+step prevents full acceptance. Unconfirmed findings prevent a green verdict.
 
 ## Project memory
 

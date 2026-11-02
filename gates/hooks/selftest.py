@@ -62,6 +62,7 @@ if not os.path.exists(EXAMPLE):
 ALLOW_YES = write_json("allow-yes.json", {"allow_base_push": "tools/allow.sh"})
 ALLOW_NO = write_json("allow-no.json", {"allow_base_push": "tools/deny.sh"})
 DEVELOP = write_json("develop.json", {"protected_branches": ["develop"]})
+HOOK_DIR = write_json("hook-dir.json", {"secret_names": [".env", ".githooks"]})
 BROKEN = write_json("broken.json", "{not json")
 WRONG_TYPE = write_json("wrong-type.json", {"protected_branches": "develop"})
 
@@ -361,8 +362,8 @@ CASES = [
     (SECRETS, DEFAULT, B("echo $NODE_ENV .environment"), 0),
     (SECRETS, DEFAULT, B("echo 'DEBUG=1' > .env.example"), 0),
     (SECRETS, DEFAULT, B("git check-ignore .env"), 0),
-    (SECRETS, DEFAULT, B("git log -- .env"), 0),
-    (SECRETS, DEFAULT, B("git diff HEAD -- .env"), 0),
+    (SECRETS, DEFAULT, B("git log -- .env"), 2),
+    (SECRETS, DEFAULT, B("git diff HEAD -- .env"), 2),
     (SECRETS, DEFAULT, B("git show HEAD:README.md"), 0),
     (SECRETS, BROKEN, F("Read", "/p/.env"), 2),
     # secrets gate, example config: extra names and patterns
@@ -407,6 +408,42 @@ CASES.extend([
     (SECRETS, DEFAULT, patch("*** Add File: src/ordinary.py", "+x = '.env'"), 0),
     (SECRETS, DEFAULT, patch("*** Add File: good.txt", "+x", "*** Delete File: .env"), 2),
     (SECRETS, DEFAULT, ("apply_patch", {}, on_feature), 2),
+])
+
+# Regression cases for commands hidden in shell control flow, launcher command strings,
+# git guard configuration, and secret-bearing Git output or redirections.
+CASES.extend([
+    (MERGE, DEFAULT, B("if true; then gh pr merge 1; fi"), 2),
+    (MERGE, DEFAULT, B("if ! gh pr merge 1; then echo done; fi"), 2),
+    (MERGE, DEFAULT, B("if git push origin main; then echo done; fi"), 2),
+    (MERGE, DEFAULT, B("while true; do gh pr merge 1; done"), 2),
+    (MERGE, DEFAULT, B("until true; do git push origin main; done"), 2),
+    (MERGE, DEFAULT, B("for x in a b; do gh pr merge 1; done"), 2),
+    (MERGE, DEFAULT, B("if true\nthen\n gh pr merge 1\nfi"), 2),
+    (MERGE, DEFAULT, B("git config agent-gates.allowBasePush /usr/bin/true"), 2),
+    (MERGE, DEFAULT, B("git config --unset agent-gates.protectedBranch"), 2),
+    (MERGE, DEFAULT, B("git config --remove-section agent-gates"), 2),
+    (MERGE, DEFAULT, B("git -cagent-gates.allowBasePush=/usr/bin/true push origin feature/x"), 2),
+    (MERGE, DEFAULT, B("git -ccore.hooksPath=/dev/null push origin feature/x"), 2),
+    (MERGE, DEFAULT, B("GIT_CONFIG_KEY_0=agent-gates.allowBasePush git push origin feature/x"), 2),
+    (MERGE, DEFAULT, B("git config --get agent-gates.allowBasePush"), 0),
+    (MERGE, DEFAULT, B('echo "then gh pr merge 1"'), 0),
+    (RELEASE, EXAMPLE, B("if true; then npm publish; fi"), 2),
+    (RELEASE, EXAMPLE, B('npx --yes --package npm -c "npm publish"'), 2),
+    (RELEASE, EXAMPLE, B('npx --call="npm publish"'), 2),
+    (RELEASE, EXAMPLE, B('npm exec --call="npm publish"'), 2),
+    (RELEASE, EXAMPLE, B('echo "then npm publish"'), 0),
+    (RELEASE, EXAMPLE, B('npx --package npm echo safe'), 0),
+    (SECRETS, DEFAULT, B("git log -p -- .env"), 2),
+    (SECRETS, DEFAULT, B("git status -- .env"), 0),
+    (SECRETS, DEFAULT, B("git ls-files -- .env"), 0),
+    (SECRETS, DEFAULT, B("ls > .env"), 2),
+    (SECRETS, DEFAULT, B("test -f harmless 2>.env"), 2),
+    (SECRETS, DEFAULT, B("if true; then ls > .env; fi"), 2),
+    (SECRETS, HOOK_DIR, B("cat .githooks/pre-push"), 2),
+    (SECRETS, HOOK_DIR, F("Read", "/p/.githooks/pre-push"), 2),
+    (SECRETS, HOOK_DIR, patch("*** Update File: .githooks/pre-push", "@@", "+x"), 2),
+    (SECRETS, HOOK_DIR, F("Read", "/p/.env.example"), 0),
 ])
 
 

@@ -172,7 +172,8 @@ their original form regardless.
 - **A step only the owner can do** (a dashboard setting, a paid-plan feature, a
   credential, enabling a hook per clone) → its own child issue with the
   `ready-for-human` triage label, not `ready-for-agent`, saying in the body that it is
-  not for the developer.
+  not for the developer. Mark every dependent child explicitly; report which agent
+  issues can proceed without it and what evidence will prove the human step is done.
 - **Two children edit the same file** (shared instructions, a config) → give them a
   real `Blocked by` edge, even when the logic is independent; parallel edits to one
   file conflict.

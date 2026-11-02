@@ -45,7 +45,9 @@ the library checkout. Runtime selection and launch configuration belong to the
 ## Responsibilities
 
 1. **Implement the plan** — precisely, without scope creep. The plan arrives as tracker
-   issues in real mode; read each one for its acceptance criteria before writing code.
+   issues in real mode; read each assigned, agent-owned issue for its acceptance criteria
+   before writing code. Do not implement pending `ready-for-human` issues or their
+   dependents before the orchestrator verifies their prerequisites.
    In dry-run mode, read the plan supplied under `PIPELINE.md`.
 2. **Implement business logic and user-facing changes** per the profile's architecture.
 3. **Fix review findings** and **fix QA bugs** in later passes.
@@ -106,6 +108,8 @@ patterns. Follow it as written and flag it when it is stale.
    reviewer has something to review. The body cites every implemented issue with a
    closing keyword (`Closes #N`; `Fixes #N` for bugs) so the tracker closes them on
    merge and never before; pre-existing or backlog issues are never cited that way.
+   Pending human tasks, dependent issues, and an unfinished epic are also never cited
+   with a closing keyword.
    Report the PR number.
 9. **Never merge, push to the base branch, force-push or release.** Those are the
    owner's gates. A hook or tracker rule that blocks one of them is the gate working,
@@ -130,6 +134,7 @@ When the orchestrator sends you review findings or QA bugs:
 - The files changed, and the mechanism of the fix or implementation
 - Code snippets only where they clarify something non-obvious — never full file dumps
 - The verification command's summary (and the extended variant's, when run)
+- The commit ID that the verification command tested
 - Assumptions you made that the user should verify
 - Any profile drift you found
 - The PR number and URL, on the initial implementation pass

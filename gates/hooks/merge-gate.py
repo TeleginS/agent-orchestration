@@ -35,8 +35,8 @@ CONFIG_READ_FLAGS = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "-l
 CONFIG_WRITE_FLAGS = {"--unset", "--unset-all", "--add", "--replace-all", "-e", "--edit"}
 CONFIG_SECTION_FLAGS = {"--remove-section", "--rename-section"}
 CONFIG_VALUE_FLAGS = {"-f", "--file", "--blob", "-t", "--type", "--default"}
-# Keys that define what git runs: the pre-push hook location and command aliases
-GUARDED_KEYS = ("core.hookspath", "alias.")
+# Keys that define what git runs or what the pre-push hook permits.
+GUARDED_KEYS = ("core.hookspath", "alias.", "agent-gates.allowbasepush", "agent-gates.protectedbranch")
 REST_MERGE = re.compile(r"pulls/[^/\s]+/merge(?![\w-])")
 GRAPHQL_MERGE = re.compile(r"mergePullRequest|enablePullRequestAutoMerge", re.I)
 ENV_CONFIG = re.compile(r"\bgit_config_(parameters|key_\d+)=")
@@ -54,7 +54,7 @@ def hidden_guard_marker(seg):
         return None
     for tok in seg[1:]:
         low = tok.lower()
-        if tok == "--no-verify" or "core.hookspath" in low or ALIAS_TOKEN.match(low):
+        if tok == "--no-verify" or "core.hookspath" in low or "agent-gates." in low or ALIAS_TOKEN.match(low):
             return tok
     return None
 
@@ -90,6 +90,9 @@ def split_git(seg):
         if args[i] == "-c" and i + 1 < len(args):
             key, _, value = args[i + 1].partition("=")
             inline[key.lower()] = value
+        elif args[i].startswith("-c") and len(args[i]) > 2:
+            key, _, value = args[i][2:].partition("=")
+            inline[key.lower()] = value
         i += 2 if args[i] in GIT_VALUE_FLAGS else 1
     if i >= len(args):
         return None
@@ -108,7 +111,7 @@ def guard_change(sub, args, inline):
     writes = section_op or any(a in CONFIG_WRITE_FLAGS for a in args) or len(pos) >= 2
     for p in pos:
         low = p.lower()
-        if writes and (low.startswith(GUARDED_KEYS) or (section_op and low in {"alias", "core"})):
+        if writes and (low.startswith(GUARDED_KEYS) or (section_op and low in {"alias", "core", "agent-gates"})):
             return "git config %s" % p
     return None
 
@@ -226,7 +229,7 @@ def main():
     cwd = payload.get("cwd") or ""
     gate = Gate(config.get())
     low = command.lower()
-    if ENV_CONFIG.search(low) and ("hookspath" in low or "alias." in low):
+    if ENV_CONFIG.search(low) and ("hookspath" in low or "alias." in low or "agent-gates." in low):
         block(OWNER_MSG.format(what="git hooks or aliases redefined through GIT_CONFIG_* variables"))
     pushes, allowed, work, seen = 0, 0, list(segments(command)), 0
     while work and seen < 64:
