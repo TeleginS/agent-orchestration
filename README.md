@@ -115,7 +115,14 @@ the pipeline.
 and go stale; roles are told to follow the code when the two disagree and to report the
 drift, which surfaces in the final report so the profile can be fixed.
 
-## Quick start
+## Install in a project
+
+Run everything below from the adopting project's root. Claude Code is shown in full;
+the Codex differences are one line each, and the [generic harness](adapters/generic-harness/README.md)
+needs only steps 1, 2 and 7. The adapter and gate READMEs hold the details and the
+migration paths for projects that already have skills, hooks or an older install.
+
+**1. Vendor the library and write the profile.**
 
 ```bash
 git submodule add <this-repo> agent-orchestration
@@ -123,13 +130,97 @@ mkdir -p .agents
 cp agent-orchestration/profiles/_template.md .agents/profile.md
 ```
 
-Fill in `.agents/profile.md` — [`example-mobile-app.md`](profiles/example-mobile-app.md)
-shows the useful level of detail. The profile lives in your project, next to
-`.agents/skills/` and `.agents/memory/`, so it is versioned with the code it describes
-and the orchestrator finds it without an explicit path (a file inside the submodule
-could not be committed by your repository). Then follow the installation instructions for
-[Claude Code](adapters/claude-code/README.md), [Codex](adapters/codex/README.md), or a
-[generic harness](adapters/generic-harness/README.md).
+Fill in every section of `.agents/profile.md`; [`example-mobile-app.md`](profiles/example-mobile-app.md)
+shows the useful level of detail, and the **Verification command** and **Human gates**
+sections are the ones the rest of this list depends on. The profile lives in your
+project, next to `.agents/skills/` and `.agents/memory/`, so it is versioned with the
+code it describes and the orchestrator finds it without an explicit path.
+
+**2. Link the canonical skills.** Skip any role that already exists and inspect it; if
+`.agents/skills` is itself a symlink, read [adapters/README.md](adapters/README.md#shared-installation) first.
+
+```bash
+mkdir -p .agents/skills
+for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage; do
+  [ -e ".agents/skills/$role" ] || ln -s "../../agent-orchestration/skills/$role" ".agents/skills/$role"
+done
+```
+
+**3. Install the host launchers.** They carry the model and fork settings; the skill
+bodies stay in the library.
+
+```bash
+# Claude Code: thin wrappers in .claude/skills/
+mkdir -p .claude/skills
+for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage; do
+  [ -e ".claude/skills/$role" ] || cp -R "agent-orchestration/adapters/claude-code/skills/$role" ".claude/skills/$role"
+done
+```
+
+Codex: copy `agent-orchestration/adapters/codex/agents/<role>.toml` into `.codex/agents/`
+for the five stage roles instead; see [adapters/codex/README.md](adapters/codex/README.md#install).
+
+**4. Install the gate hooks and their configuration.**
+
+```bash
+mkdir -p .claude/hooks
+cp agent-orchestration/gates/hooks/*.py .claude/hooks/
+cp -n agent-orchestration/gates/hooks/gates.example.json .claude/hooks/gates.json
+```
+
+Edit `.claude/hooks/gates.json` from the profile's Human gates section: protected
+branches, the files agents may not open, every command that publishes a release. With
+no release rules the release gate blocks nothing. Codex: the same files go to
+`.codex/hooks/`.
+
+**5. Run the self-test before wiring anything.** A broken `PreToolUse` hook blocks every
+later tool call, so this step is not optional.
+
+```bash
+python3 .claude/hooks/selftest.py        # must end with "0 failed"
+```
+
+**6. Wire the hooks into the host.** Merge the `hooks` block from
+[`adapters/claude-code/hooks/settings.example.json`](adapters/claude-code/hooks/settings.example.json)
+into the tracked `.claude/settings.json`. Codex: merge
+[`adapters/codex/hooks.example.json`](adapters/codex/hooks.example.json) into
+`.codex/hooks.json`, then review and trust the hooks with `/hooks`; an untrusted hook is
+silently skipped.
+
+**7. Install the git `pre-push` hook.** It sees the real push from any tool and is the
+second layer behind the command parsers.
+
+```bash
+mkdir -p .githooks
+cp agent-orchestration/gates/git/pre-push .githooks/pre-push
+chmod +x .githooks/pre-push
+git config core.hooksPath .githooks              # the owner runs this, once per clone
+# git config --add agent-gates.protectedBranch develop   # if the base branch is not main/master
+```
+
+Run that `git config` yourself: `merge-gate.py` blocks every change to `core.hooksPath`
+so that an agent cannot switch the hook off later. Where the hosting plan allows it, add
+a server-side branch rule as well; a local hook cannot stop a merge made through the web
+UI with your credentials.
+
+**8. Commit the installation.** `.gitmodules` and the submodule pointer,
+`.agents/profile.md`, the `.agents/skills/*` links, `.claude/skills/*`,
+`.claude/hooks/*` including `gates.json`, `.claude/settings.json` and
+`.githooks/pre-push`. Leave `.claude/settings.local.json` untracked, and let
+`.agents/memory/` appear through a pipeline run rather than an empty directory.
+
+**9. Check that the gates are live, then do a dry-run.**
+
+```bash
+echo '{"tool_name":"Bash","tool_input":{"command":"git push origin main"},"cwd":"'"$PWD"'"}' \
+  | python3 .claude/hooks/merge-gate.py; echo "exit $?"     # expect "Blocked by merge-gate" and exit 2
+```
+
+Then, in Claude, run `/orchestrator Task: <a small real task>. Mode: dry-run.` It touches
+neither your tracker nor your remote (see [Dry-run](#dry-run)). Confirm that each stage
+ran as a separate subagent rather than inline, that the planner read your profile, and
+that the final report names the verification command. Record what is actually enforced
+in the profile's **Enforcement installed** field; the pipeline reports gaps from there.
 
 Codex discovers the canonical packages through per-role links in the adopting project's
 `.agents/skills/`. Claude uses thin skill launchers in `.claude/skills/` to supply its
