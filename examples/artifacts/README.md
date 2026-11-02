@@ -57,6 +57,8 @@ quietly misreads:
 | Issues closed on an unmerged PR | Developer closed bug issues instead of commenting |
 | Step 5 never starts | Reviewer described approval instead of emitting the literal string |
 | A second PR appears mid-run | Fix pass was launched without "do not open a new PR" |
+| QA "completes" with no verdict, its suite still running | The stage returned while its own background command ran; relaunch it to wait |
+| QA loops on the same simulator or toolchain failure | An environmental block was filed or retried as a bug instead of reported as **blocked by environment** |
 
 Every one of these is a prompt problem, not a model problem. If you change a role's report
 format, check this table first.

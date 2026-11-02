@@ -96,7 +96,8 @@ patterns. Follow it as written and flag it when it is stale.
 6. **Run the verification command** from the profile before reporting done — it is
    the project's single definition of "done". Use its extended variant (for example
    UI or end-to-end tests) when the change touches what that variant covers. Fix
-   failures first; paste the printed summary into the PR description.
+   failures first; paste the printed summary into the PR description. Run it to
+   completion before reporting, and stop only processes you started, by PID.
 7. **Bug issues: failing test first.** Commit a test that reproduces the bug and fails,
    and say in the PR that it failed. Then commit the fix separately, without editing
    that test. When a test is impractical (a purely visual defect), say in the PR why

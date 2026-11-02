@@ -56,7 +56,7 @@ Every section in `_template.md` is required. Roles reference them by name:
 | Identity | all |
 | Stack | all |
 | Layout | developer, code-reviewer, qa-tester |
-| Verification command | developer, code-reviewer, qa-tester |
+| Verification command (incl. QA variant, time budget, base-version checks) | developer, code-reviewer, qa-tester, orchestrator |
 | Commands | developer, qa-tester, orchestrator |
 | Architecture invariants | all |
 | Critical flags and release gates | developer, code-reviewer, qa-tester |

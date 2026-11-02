@@ -40,6 +40,17 @@ design artifacts, mode, current branch/PR or local diff, prior findings, file ow
 and applicable user constraints. Each stage completes its assignment and returns to
 the orchestrator; it never starts the pipeline recursively.
 
+A stage returns only when the work it started has finished. A report that says a build,
+a test run or another command it launched is still running is not a result: the
+orchestrator relaunches the stage with that instruction and never waits on, inspects or
+completes the leftover work itself. Long commands run in the foreground with a timeout
+from the profile, or are waited on inside the stage until they exit.
+
+A stage stops only processes it started, by the PID it recorded. Killing by name or
+pattern (`pkill -f xcodebuild`, `killall`) also stops the owner's builds and other
+sessions on the same machine; when a shared resource such as a simulator is busy for
+another reason, report it rather than clearing it.
+
 Existing authorization and explicit branch, local-only, no-push, and memory restrictions
 remain in force across stages. Select real or dry-run mode before starting; if a
 constraint prevents a required real-mode action, resolve that specific limitation
@@ -226,6 +237,13 @@ files a tracker issue for **every** bug found — including ones it will not fix
 **Mandatory gate:** QA runs the profile's verification command in its fullest variant
 (or the test suite command when the profile has none) before reaching any verdict. Failures or skips become bug issues. The suite is re-run
 after every fix pass.
+
+The profile bounds that gate: its **QA variant** names which variant QA runs and its
+**Time budget** how long one run may take. A run that exceeds the budget, or cannot run
+for an environmental reason (a busy simulator, a missing device), ends the stage as
+**blocked by environment** with the partial results; it is neither green nor a product
+bug. The orchestrator reports it to the user and does not relaunch QA into the same
+environment within the iteration limit.
 
 ## Step 6 — Bug-fix loop
 

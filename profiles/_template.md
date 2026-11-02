@@ -50,6 +50,16 @@ It exits non-zero on any failure and prints a short summary, not raw tool logs.
 - **What it enforces**: <the checks, so the reviewer can exclude them>
 - **Healthy output**: <two or three lines of a passing run>
 - **Typical duration**: <so agents pick a long enough timeout and run it in the foreground>
+- **QA variant**: <the variant QA runs before a verdict — the fullest one unless it is
+  impractical on every change, e.g. `<script> --full`, or `<script>` plus the UI tests of
+  touched screens>
+- **Time budget**: <the longest one QA run may take before QA reports "blocked by
+  environment", e.g. 30 minutes>
+- **Base-version checks**: <how QA builds and tests the pre-change commit to prove a bug
+  pre-existing without a full rebuild — a shared build cache, a reusable worktree path,
+  running only the failing tests>
+- **Shared resources**: <simulators, devices, ports or databases that one run occupies,
+  and what to do when another session holds them>
 
 Write "None — use the build and test commands below" if the project has no such script
 yet; adding one is usually the first improvement worth making.
