@@ -1,4 +1,5 @@
-# The active profile is project-specific. Commit it in the adopting project, not here.
+# A profile here is local to this checkout. Adopting projects keep theirs at
+# <project-root>/.agents/profile.md (see profiles/README.md), versioned with the code.
 profiles/active.md
 
 # Dry-run output

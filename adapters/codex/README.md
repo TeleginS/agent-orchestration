@@ -37,7 +37,7 @@ do not copy the entire adapter over `.codex/` and overwrite local configuration.
 ## Run
 
 ```text
-$orchestrator Task: <the task>. Active profile: /absolute/project/profile.md.
+$orchestrator Task: <the task>. Active profile: /absolute/project/.agents/profile.md.
 Runtime adapter: /absolute/project/agent-orchestration/adapters/codex/runtime.md
 ```
 
@@ -74,7 +74,7 @@ model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 ```
 
-The commented examples come from TrafficRulesApp's role assignments:
+The commented examples come from the ancestor project's role assignments:
 
 | Role | Example model | Example reasoning effort |
 |---|---|---|

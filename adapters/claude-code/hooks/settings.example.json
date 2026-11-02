@@ -15,7 +15,7 @@
         ]
       },
       {
-        "matcher": "Bash|Read|Edit|Write|MultiEdit|NotebookEdit",
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|NotebookEdit|Grep",
         "hooks": [
           {
             "type": "command",

@@ -60,6 +60,13 @@ scripts/verify.sh --full    # additionally connectedDebugAndroidTest on the firs
   Result: OK
   ```
 - **Typical duration**: ~4 minutes; `--full` ~15 minutes with an emulator running.
+- **QA variant**: `scripts/verify.sh --full`
+- **Time budget**: 30 minutes per run
+- **Base-version checks**: `git worktree add ../habitat-base <base>` and run only the
+  failing test class with `./gradlew :app:testDebugUnitTest --tests '<Class>'`; the Gradle
+  cache in `~/.gradle` is shared, so the worktree does not rebuild dependencies.
+- **Shared resources**: one emulator, `emulator-5554`. If it is held by another run,
+  report it; never kill the other run's Gradle daemon.
 
 ## Commands
 

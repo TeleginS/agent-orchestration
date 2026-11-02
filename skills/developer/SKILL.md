@@ -96,13 +96,17 @@ patterns. Follow it as written and flag it when it is stale.
 6. **Run the verification command** from the profile before reporting done — it is
    the project's single definition of "done". Use its extended variant (for example
    UI or end-to-end tests) when the change touches what that variant covers. Fix
-   failures first; paste the printed summary into the PR description.
+   failures first; paste the printed summary into the PR description. Run it to
+   completion before reporting, and stop only processes you started, by PID.
 7. **Bug issues: failing test first.** Commit a test that reproduces the bug and fails,
    and say in the PR that it failed. Then commit the fix separately, without editing
    that test. When a test is impractical (a purely visual defect), say in the PR why
    none was written. The reviewer checks this order.
 8. **Open a PR** after the initial implementation, targeting the base branch, so the
-   reviewer has something to review. Report the PR number.
+   reviewer has something to review. The body cites every implemented issue with a
+   closing keyword (`Closes #N`; `Fixes #N` for bugs) so the tracker closes them on
+   merge and never before; pre-existing or backlog issues are never cited that way.
+   Report the PR number.
 9. **Never merge, push to the base branch, force-push or release.** Those are the
    owner's gates. A hook or tracker rule that blocks one of them is the gate working,
    not an obstacle to route around: stop and report it.
@@ -115,9 +119,11 @@ When the orchestrator sends you review findings or QA bugs:
 - Address every Important finding. If you disagree with one, say so with a reason
   instead of silently skipping it — an unaddressed finding that looks addressed is
   worse than an open disagreement.
-- For QA bug issues: comment `Fixed in PR #NN: <one line>` on each. Do **not** close
-  them — the PR is unmerged. Close only if the orchestrator explicitly states the PR
-  merged, or no PR is involved and the fix is already on the target branch.
+- For QA bug issues: comment `Fixed in PR #NN: <one line>` on each and add `Fixes #NN`
+  to the PR body. Do **not** close them — the PR is unmerged. Close only if the
+  orchestrator explicitly states the PR merged, or no PR is involved and the fix is
+  already on the target branch. Each QA bug is a bug issue: the failing-test-first
+  rule above applies to every one of them.
 
 ## Output format
 

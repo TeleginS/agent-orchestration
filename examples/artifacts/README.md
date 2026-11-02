@@ -13,7 +13,7 @@ drifts.
 | Role | Step | Must return | Consumed by | Example |
 |---|---|---|---|---|
 | `task-planner` | 1 | Epic number + URL, every child number + URL | Steps 3, 5, 8 | [01](../run-cumulative-stats/01-epic.md), [02](../run-cumulative-stats/02-child-issues.md) |
-| `developer` | 3 | Changed files, mechanism, build/test result, **PR number** | Steps 4, 5 | [03](../run-cumulative-stats/03-pull-request.md) |
+| `developer` | 3 | Changed files, mechanism, verification command summary, **PR number** (body closes its issues on merge) | Steps 4, 5, 8 | [03](../run-cumulative-stats/03-pull-request.md) |
 | `developer` | 4, 6 | Findings addressed (mapped), pushed to same branch, no new PR | Steps 4, 6 | [06a](../run-cumulative-stats/06-fix-and-retest.md) |
 | `code-reviewer` | 4, 6 | `Code Review — Iteration N` with 🔴/🟠/🟡/🟢 groups, **or** literal `✅ APPROVAL` | Loop control | [04](../run-cumulative-stats/04-code-review.md), [06b](../run-cumulative-stats/06-fix-and-retest.md) |
 | `qa-tester` | 5, 6 | Two separated lists (in-scope / pre-existing) with issue numbers, **test suite result**, explicit verdict | Step 6 scope split, Step 8 | [05](../run-cumulative-stats/05-qa-bug.md), [06c](../run-cumulative-stats/06-fix-and-retest.md) |
@@ -57,6 +57,8 @@ quietly misreads:
 | Issues closed on an unmerged PR | Developer closed bug issues instead of commenting |
 | Step 5 never starts | Reviewer described approval instead of emitting the literal string |
 | A second PR appears mid-run | Fix pass was launched without "do not open a new PR" |
+| QA "completes" with no verdict, its suite still running | The stage returned while its own background command ran; relaunch it to wait |
+| QA loops on the same simulator or toolchain failure | An environmental block was filed or retried as a bug instead of reported as **blocked by environment** |
 
 Every one of these is a prompt problem, not a model problem. If you change a role's report
 format, check this table first.

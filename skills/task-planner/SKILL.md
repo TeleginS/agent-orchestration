@@ -50,10 +50,11 @@ so the developer, reviewer, and QA use the same source.
 
 ### 1. Understand
 
-Read the request carefully. If it is ambiguous or missing something critical, ask before
-proceeding — a decomposition built on a guess produces issues that look actionable and
-aren't. Identify scope, constraints, and implicit requirements. Factor in the profile's
-architectural constraints.
+Read the request carefully. If it is ambiguous or missing something critical, return the
+concrete open questions to the caller before creating anything — you run as a separate
+stage and cannot ask the user directly, and a decomposition built on a guess produces
+issues that look actionable and aren't. Identify scope, constraints, and implicit
+requirements. Factor in the profile's architectural constraints.
 
 If design artifacts were passed to you, they are the source of truth. Use their
 vocabulary.

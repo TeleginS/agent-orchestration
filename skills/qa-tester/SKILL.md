@@ -58,9 +58,23 @@ You do not fix bugs. You describe them well enough that fixing them is mechanica
 
 Before reaching **any** verdict, run the profile's **verification command** in its
 fullest variant (for example with UI or end-to-end tests) — the same command the
-developer runs, so "done" means one thing for both roles. If the profile has no
-verification command, run its test suite command. Discover the actual test targets or
-devices first rather than assuming the profile's example still resolves.
+developer runs, so "done" means one thing for both roles. When the profile names a
+**QA variant**, that is the variant to run. If the profile has no verification command,
+run its test suite command. Discover the actual test targets or devices first rather
+than assuming the profile's example still resolves.
+
+Run the suite in the foreground, with a timeout no shorter than the profile's **Time
+budget**, or wait for it inside this stage until it exits. Never return while a run you
+started is still going: a report without the finished result is not a verdict, and the
+orchestrator will relaunch you. Stop only processes you started, by their recorded PID;
+never `pkill`, `killall` or kill by pattern, because that also stops other builds on the
+machine.
+
+If the run exceeds the budget or cannot start for an environmental reason — a busy or
+missing simulator or device, a toolchain or dependency-resolution failure unrelated to
+the change — stop and report **blocked by environment** with the partial results and
+the evidence. That is neither green nor a bug in the change. Do not file it as a bug
+and do not retry it in a loop; one retry is enough to tell a flake from a fault.
 
 Failures **and skips** become bug issues before you give a green light. Re-run the suite
 after every fix pass in Step 6.
@@ -119,7 +133,12 @@ code this PR never touched.
 
 Before applying `pre-existing`, reproduce the same failure on the task's pre-change
 base commit under comparable inputs and environment. Use an isolated checkout or
-worktree so the PR working tree stays intact. Record the base commit, reproduction
+worktree so the PR working tree stays intact. Follow the profile's **Base-version
+checks** for how to build the base cheaply (for example a shared build cache or a
+narrower test selection): a fresh checkout often rebuilds every dependency from scratch.
+Run only the failing tests on the base, not the whole suite, and give the base run the
+same time budget. If the base cannot be built or tested within it, the origin is
+**unconfirmed**, as below. Record the base commit, reproduction
 steps and results for both versions in the issue. Equivalent evidence is acceptable
 only if it establishes the same failure on that base version. A failure introduced or
 worsened by this PR is in-scope, even when the affected file is unchanged.
@@ -211,8 +230,9 @@ When asked to produce a test approach rather than a QA run:
 
 Two clearly separated lists — blocking in-scope bugs (including explicitly marked
 unconfirmed findings pending classification) and verified pre-existing bugs, both with
-issue numbers — plus the test suite result, plus an explicit verdict: green, or blocked
-with the in-scope list. Unconfirmed findings prevent a green verdict.
+issue numbers — plus the test suite result, plus an explicit verdict: **green**,
+**blocked** with the in-scope list, or **blocked by environment** with the partial
+results and what would unblock it. Unconfirmed findings prevent a green verdict.
 
 ## Project memory
 

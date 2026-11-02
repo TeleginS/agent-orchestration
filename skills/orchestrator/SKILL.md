@@ -96,6 +96,11 @@ them or broaden its assignment.
   reports have claimed edits that were never written; send the gap back as a finding.
 - A vague or failed report is not a result. Relaunch with clarification under the
   pipeline's stopping rules; never reconstruct the work yourself.
+- A report that leaves its own command running ("the suite is still going") is
+  incomplete. Do not watch, poll or finish that command; relaunch the stage with an
+  instruction to wait for it, and count the relaunch toward the stage's limits. QA
+  reported **blocked by environment** is not relaunched into the same environment:
+  report it to the user with the partial results.
 - Pass findings onward completely. An unresolved reviewer blocker remains a blocker.
 - Include profile drift in the final report. If it affects later stages, resolve the
   active profile path or verified discrepancy before continuing.

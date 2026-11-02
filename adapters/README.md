@@ -17,8 +17,9 @@ implementer; an adapter must preserve that boundary.
 
 ## Shared installation
 
-Vendor this library at `<project-root>/agent-orchestration/`, then create a project
-profile following [`../profiles/README.md`](../profiles/README.md). Keep the canonical
+Vendor this library at `<project-root>/agent-orchestration/`, then create the project
+profile at `<project-root>/.agents/profile.md` following
+[`../profiles/README.md`](../profiles/README.md). Keep the canonical
 skills discoverable through individual links, preserving unrelated project skills:
 
 ```bash

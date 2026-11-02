@@ -8,7 +8,7 @@ Complete the [shared installation](../README.md#shared-installation), then start
 
 > Apply `/absolute/project/agent-orchestration/skills/orchestrator/SKILL.md` in this
 > conversation, using `/absolute/project/agent-orchestration/adapters/generic-harness/orchestrator-runbook.md`
-> as the runtime adapter. Active profile: `/absolute/project/profile.md`. Task: ...
+> as the runtime adapter. Active profile: `/absolute/project/.agents/profile.md`. Task: ...
 
 [`orchestrator-runbook.md`](orchestrator-runbook.md) covers prompt assembly, paths and
 host capabilities. [`launchers/`](launchers/) contains optional role selectors for
