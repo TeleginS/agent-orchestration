@@ -119,8 +119,13 @@ drift, which surfaces in the final report so the profile can be fixed.
 
 Run everything below from the adopting project's root. Claude Code is shown in full;
 the Codex differences are one line each, and the [generic harness](adapters/generic-harness/README.md)
-needs only steps 1, 2 and 7. The adapter and gate READMEs hold the details and the
-migration paths for projects that already have skills, hooks or an older install.
+needs only steps 1, 2 and 7. The adapter and gate READMEs hold the details.
+
+**Upgrading a project that already runs an earlier version** (role skills, gate hooks,
+a `.claude/project-profile.md` or role memory from before this library)? Read
+[Upgrading an existing installation](#upgrading-an-existing-installation) first. Steps 2
+and 3 keep anything that already exists under a role's name, so on such a project they
+can finish without installing anything new.
 
 **1. Vendor the library and write the profile.**
 
@@ -136,26 +141,53 @@ sections are the ones the rest of this list depends on. The profile lives in you
 project, next to `.agents/skills/` and `.agents/memory/`, so it is versioned with the
 code it describes and the orchestrator finds it without an explicit path.
 
-**2. Link the canonical skills.** Skip any role that already exists and inspect it; if
+**2. Link the canonical skills.** An existing entry under a role's name is kept and
+reported, never overwritten. Every `KEPT` line is a role that will run its old version:
+inspect it and replace it with the link if it is an earlier copy of that role. If
 `.agents/skills` is itself a symlink, read [adapters/README.md](adapters/README.md#shared-installation) first.
 
 ```bash
+ROLES="orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage"
 mkdir -p .agents/skills
-for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage; do
-  [ -e ".agents/skills/$role" ] || ln -s "../../agent-orchestration/skills/$role" ".agents/skills/$role"
+for role in $ROLES; do
+  if [ -e ".agents/skills/$role" ] || [ -L ".agents/skills/$role" ]; then
+    echo "KEPT .agents/skills/$role -> $(readlink ".agents/skills/$role" || echo 'own directory')"
+  else
+    ln -s "../../agent-orchestration/skills/$role" ".agents/skills/$role"
+  fi
 done
 ```
 
 **3. Install the host launchers.** They carry the model and fork settings; the skill
-bodies stay in the library.
+bodies stay in the library. A launcher is what makes a stage run as a separate
+subagent: without it the stage runs inside the orchestrator's conversation and review
+and QA are no longer independent.
 
 ```bash
 # Claude Code: thin wrappers in .claude/skills/
-mkdir -p .claude/skills
-for role in orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage; do
-  [ -e ".claude/skills/$role" ] || cp -R "agent-orchestration/adapters/claude-code/skills/$role" ".claude/skills/$role"
-done
+ROLES="orchestrator task-planner developer code-reviewer qa-tester settings-optimizer production-triage"
+if [ -L .claude/skills ]; then
+  echo "STOP: .claude/skills is a symlink to $(readlink .claude/skills)."
+  echo "Every role would look installed through it. Migrate first: adapters/claude-code/README.md"
+else
+  mkdir -p .claude/skills
+  for role in $ROLES; do
+    if [ -e ".claude/skills/$role" ] || [ -L ".claude/skills/$role" ]; then
+      echo "KEPT .claude/skills/$role"
+    else
+      cp -R "agent-orchestration/adapters/claude-code/skills/$role" ".claude/skills/$role"
+    fi
+  done
+  grep -L '^context: fork' .claude/skills/*/SKILL.md 2>/dev/null \
+    | grep -E "/($(echo $ROLES | tr ' ' '|'))/" | sed 's/^/NOT A FORK: /'
+fi
 ```
+
+The last command lists the installed roles whose launcher does not fork; only
+`orchestrator` should appear. A project that links `.claude/skills` to
+`.agents/skills`, a common earlier layout, stops here until the
+[migration](adapters/claude-code/README.md#migrate-an-existing-installation) replaces the
+link with a real directory.
 
 Codex: copy `agent-orchestration/adapters/codex/agents/<role>.toml` into `.codex/agents/`
 for the five stage roles instead; see [adapters/codex/README.md](adapters/codex/README.md#install).
@@ -171,7 +203,8 @@ cp -n agent-orchestration/gates/hooks/gates.example.json .claude/hooks/gates.jso
 Edit `.claude/hooks/gates.json` from the profile's Human gates section: protected
 branches, the files agents may not open, every command that publishes a release. With
 no release rules the release gate blocks nothing. Codex: the same files go to
-`.codex/hooks/`.
+`.codex/hooks/`. Copying over older hooks of the same name replaces their logic; port
+any project rules they hard-coded first (see [upgrading](#upgrading-an-existing-installation)).
 
 **5. Run the self-test before wiring anything.** A broken `PreToolUse` hook blocks every
 later tool call, so this step is not optional.
@@ -221,6 +254,34 @@ neither your tracker nor your remote (see [Dry-run](#dry-run)). Confirm that eac
 ran as a separate subagent rather than inline, that the planner read your profile, and
 that the final report names the verification command. Record what is actually enforced
 in the profile's **Enforcement installed** field; the pipeline reports gaps from there.
+
+### Upgrading an existing installation
+
+A project running an earlier version of this pipeline, or the ancestor it came from,
+needs four things beyond the checklist. Each one fails silently if skipped.
+
+- **Skills.** Replace earlier copies of the seven roles in `.agents/skills/` with links
+  to the library, and follow the Claude adapter's
+  [migration](adapters/claude-code/README.md#migrate-an-existing-installation) when
+  `.claude/skills` is a symlink. Older roles under other names (for example
+  `ai-orchestrator`, `ios-developer`) stay discoverable next to the new ones; retire
+  them once the new commands work, so nobody invokes the wrong orchestrator.
+- **Profile.** Move `.claude/project-profile.md` or wherever the old profile lives to
+  `.agents/profile.md`, update **Repository root**, and add the sections the
+  [template](profiles/_template.md) requires that it lacks. Earlier profiles usually
+  miss **Verification command**, **Human gates**, **Review exclusions** and
+  **Production error source**.
+- **Memory.** The new roles read `.agents/memory/<role>/` under their new names. Notes
+  kept under old role names are invisible to them until merged as described in
+  [memory/README.md](memory/README.md#migrating-existing-memory).
+- **Gate rules.** Earlier hooks often hard-code project rules that `gates.json` now
+  holds: protected branches, secret names, upload tools. Port them before step 4
+  overwrites the scripts. A project-specific check the config cannot express, such as
+  allowing an export unless its options plist uploads, stays as an extra hook beside
+  the shared ones rather than inside them. An existing release-push checker becomes the
+  `allow_base_push` script; it is called with **three** arguments
+  `<remote_sha> <local_sha> <branch>`, so a checker that insists on two needs a short
+  wrapper, or every release push is rejected.
 
 Codex discovers the canonical packages through per-role links in the adopting project's
 `.agents/skills/`. Claude uses thin skill launchers in `.claude/skills/` to supply its

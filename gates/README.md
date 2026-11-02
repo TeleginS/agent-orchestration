@@ -30,7 +30,9 @@ reports it rather than looking for a way around it.
 **Allowed base pushes.** Some release flows commit straight to the base branch, such
 as a version bump made by an owner-invoked release tool. Point `allow_base_push` (tool hook)
 and `agent-gates.allowBasePush` (pre-push) at one project script. It receives
-`<remote_sha> <local_sha> <branch>` for a fast-forward and exits 0 to allow it. Keep it
+`<remote_sha> <local_sha> <branch>` for a fast-forward and exits 0 to allow it; any other
+exit, including a usage error from a script that expects a different argument count,
+rejects the push. Wrap an existing checker rather than editing its contract. Keep it
 strict: compare `git diff --raw --no-renames` against an allowlist of paths and
 lines, and reject renames, deletions, symlinks and mode changes, because each of them can hide a
 code change inside a "version-only" range.
