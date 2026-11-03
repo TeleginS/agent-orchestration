@@ -3,8 +3,9 @@
 
 A secret name is a basename or fnmatch pattern from `secret_names`; `<name>.<suffix>`
 variants (`.env.local`) match too, and matching ignores case because the usual macOS file
-system does. Names in `secret_allow` (`.env.example`) stay readable. In Bash, the grep
-pattern argument and git pathspecs after `--` are not treated as files; `ls`, `stat`, `test`
+system does. A matching directory name protects its children. Names in `secret_allow`
+(`.env.example`) stay readable unless a parent directory is protected. In Bash, the grep
+pattern argument and metadata-only git pathspecs after `--` are not treated as files; `ls`, `stat`, `test`
 and `git check-ignore` do not read contents. Shell globs (`.env*`, `*.p8`), brace expansions
 (`.{env,}`), redirections (`0<.env`) and `<rev>:<path>` forms are resolved before matching.
 """
@@ -28,7 +29,7 @@ GREP_VALUE_FLAGS = {"-e", "-f", "-m", "-A", "-B", "-C", "--regexp", "--file", "-
                     "--include", "--exclude", "--exclude-dir", "-g", "--glob", "--iglob", "-t", "--type"}
 # Values of these flags select files to read, so they are checked like file arguments
 GREP_FILE_FLAGS = {"-f", "--file", "--include", "-g", "--glob", "--iglob"}
-HISTORY_SUBCOMMANDS = {"log", "diff", "show", "shortlog", "whatchanged", "rev-list", "status", "ls-files"}
+METADATA_GIT = {"status", "ls-files", "check-ignore"}
 GLOB_CHARS = "*?["
 _REDIRECT = re.compile(r"^\d*[<>&|]+")
 
@@ -44,6 +45,13 @@ class Secrets:
         if not name or name in self.allow:
             return False
         return any(fnmatch.fnmatchcase(name, n) or name.startswith(n + ".") for n in self.names)
+
+    def is_secret_path(self, path):
+        components = [p for p in path.replace("\\", "/").split("/") if p and p != "."]
+        if not components:
+            return False
+        # A leaf allowlist entry cannot reopen a protected parent directory.
+        return any(self.is_secret_name(p) for p in components[:-1]) or self.is_secret_name(components[-1])
 
     def matches_glob(self, name):
         """A shell glob in the command (`.env*`, `*.p8`, `[S]ecrets.xcconfig`) that expands to a secret.
@@ -62,7 +70,7 @@ class Secrets:
             parts = {word, word.split("=", 1)[-1], _REDIRECT.sub("", word), word.rsplit(":", 1)[-1]}
             for part in parts:
                 name = os.path.basename(part.rstrip("/"))
-                if self.is_secret_name(name) or self.matches_glob(name):
+                if self.is_secret_path(part) or self.matches_glob(name):
                     return True
         return False
 
@@ -80,7 +88,7 @@ def short_cluster_value(a):
 def tokens_to_check(seg):
     """Tokens of a segment that the command may open as a file.
 
-    The grep PATTERN and a git log/diff pathspec after `--` do not read the file.
+    The grep PATTERN and metadata-only git pathspecs after `--` do not read file contents.
     """
     head = os.path.basename(seg[0])
     if head in GREP_LIKE:
@@ -114,7 +122,7 @@ def tokens_to_check(seg):
         return out
     if head == "git":
         words = [a for a in seg[1:] if not a.startswith("-")]
-        if words and words[0] in HISTORY_SUBCOMMANDS and "--" in seg:
+        if words and words[0] in METADATA_GIT and "--" in seg:
             return seg[:seg.index("--")]
     return seg
 
@@ -139,6 +147,11 @@ def main():
     if tool == "Bash":
         for seg in segments(tin.get("command") or ""):
             head = os.path.basename(seg[0])
+            for i, tok in enumerate(seg):
+                if _REDIRECT.match(tok) and (tok.lstrip("0123456789")[:1] in "<>"):
+                    target = _REDIRECT.sub("", tok) or (seg[i + 1] if i + 1 < len(seg) else "")
+                    if secrets.token_hits(target):
+                        block(MSG % target)
             if head in NON_READING or seg[:2] == ["git", "check-ignore"]:
                 continue
             for tok in tokens_to_check(seg):
@@ -147,13 +160,12 @@ def main():
     elif tool == "apply_patch":
         for path in patch_paths(tin.get("command")):
             # Accept either separator so a Windows payload is checked on POSIX too.
-            name = path.replace("\\", "/").rsplit("/", 1)[-1]
-            if secrets.is_secret_name(name):
+            if secrets.is_secret_path(path):
                 block(MSG % path)
     else:
         # Read/Edit/Write/MultiEdit use file_path, NotebookEdit notebook_path, Grep path (+ glob)
         path = tin.get("file_path") or tin.get("notebook_path") or tin.get("path") or ""
-        if path and secrets.is_secret_name(os.path.basename(path)):
+        if path and secrets.is_secret_path(path):
             block(MSG % path)
         pattern = tin.get("glob") or ""
         if pattern and secrets.token_hits(pattern):

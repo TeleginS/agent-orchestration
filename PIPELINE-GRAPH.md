@@ -20,14 +20,19 @@ stateDiagram-v2
     state "Step 8 — issue cleanup (close only after merge)" as S8
     state "Step 9 — settings-optimizer (optional)" as S9
     state "Step 10 — final report" as S10
+    state "WAIT — human dependency" as WAIT_HUMAN
 
     S0 --> S1: artifacts cover it / task is operational
     S0 --> CLARIFY_DESIGN: product decisions required
     CLARIFY_DESIGN --> S0: agreed decisions recorded in design artifacts
 
     S1 --> S2: complete plan and issue identifiers collected
+    S1 --> WAIT_HUMAN: no agent work can proceed before a human step
+    WAIT_HUMAN --> S2: planning prerequisite verified
     S2 --> S3: branch exists on remote
     S3 --> S4: PR created
+    S3 --> WAIT_HUMAN: remaining development needs human result
+    WAIT_HUMAN --> S3: development prerequisite verified
 
     state "Step 4 — review loop" as S4 {
         direction LR
@@ -38,10 +43,13 @@ stateDiagram-v2
     }
     S4 --> STOP_REVIEW: blockers after 3 iterations
     S4 --> S5: APPROVAL
+    S4 --> WAIT_HUMAN: human step needed before QA can start
 
     S5 --> S7: QA green
     S5 --> S6: in-scope bugs found
     S5 --> S7: only verified pre-existing bugs — filed, non-blocking
+    S5 --> WAIT_HUMAN: acceptance check needs human result
+    WAIT_HUMAN --> S5: QA prerequisite verified
 
     state "Step 6 — bug-fix loop" as S6 {
         direction LR
@@ -58,7 +66,7 @@ stateDiagram-v2
 
     S7 --> S8
     S8 --> S9
-    S9 --> S10
+    S9 --> S10: authorized artifact commits synchronized to PR
     S10 --> [*]
 ```
 

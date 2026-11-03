@@ -6,8 +6,9 @@ instead of blocking every tool call; `selftest.py` reports it.
 
 Keys:
   protected_branches  branches only the owner merges into        [main, master]
-  secret_names        basenames or fnmatch patterns agents may not open;
-                      `<name>.<suffix>` variants match too        [.env]
+    secret_names        basenames or fnmatch patterns agents may not open;
+                        matching directory components protect children;
+                        `<name>.<suffix>` variants match too        [.env]
   secret_allow        basenames that stay readable                [.env.example, .env.sample, .env.template]
   release_commands    commands that publish a release, e.g.
                       {"command": "fastlane"},

@@ -81,7 +81,8 @@ Pass the full context rather than relying on inherited conversation history:
 4. The current mode, existing branch/PR, assigned file ownership, and task constraints,
    including memory restrictions, audit-only requests, and limits on external writes.
 5. The stage-specific inputs and reporting requirements from `PIPELINE.md`: plan or
-   issue references, acceptance criteria, prior findings, review results, and iteration.
+   issue references, acceptance criteria, prior findings, review results, iteration,
+   launch attempt, and tested commit when available.
 
 Give the settings stage the same applicable constraints even when it needs no app
 implementation context. A stage must return missing prerequisites rather than invent
@@ -95,7 +96,7 @@ them or broaden its assignment.
   the fix commit (`git show --stat`, then the diff) before relaunching review. Fix
   reports have claimed edits that were never written; send the gap back as a finding.
 - A vague or failed report is not a result. Relaunch with clarification under the
-  pipeline's stopping rules; never reconstruct the work yourself.
+  pipeline's three-attempt limit for that assignment; never reconstruct the work yourself.
 - A report that leaves its own command running ("the suite is still going") is
   incomplete. Do not watch, poll or finish that command; relaunch the stage with an
   instruction to wait for it, and count the relaunch toward the stage's limits. QA
@@ -105,7 +106,12 @@ them or broaden its assignment.
 - Include profile drift in the final report. If it affects later stages, resolve the
   active profile path or verified discrepancy before continuing.
 - Count loop iterations explicitly and report progress against the limits in
-  `PIPELINE.md`. On exhaustion, return the complete findings to the user.
+  `PIPELINE.md`, separately from stage launch attempts. On exhaustion, return the
+  complete findings to the user.
+- Track issue owners and dependency edges. Assign only ready agent work, stop before a
+  human-dependent stage, and verify the human result before resuming its dependents.
+- Before the final report, confirm all authorized artifact commits reached the PR
+  branch, or report the exact unpublished local commits and why they could not be pushed.
 
 Before each launch, say which stage is starting and why. After completion, summarize
 its result and keep the user aware of the current step. Finish with the complete

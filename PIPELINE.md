@@ -37,14 +37,21 @@ and the active profile. Library documents are relative to the library root; sour
 branch operations, run plans, and `.agents/memory/` belong to the target project.
 Pass absolute root, profile, and adapter paths in each handoff, plus the original task,
 design artifacts, mode, current branch/PR or local diff, prior findings, file ownership,
-and applicable user constraints. Each stage completes its assignment and returns to
-the orchestrator; it never starts the pipeline recursively.
+the assignment's launch attempt, the current loop iteration, the tested commit when
+available, and applicable user constraints. Each stage completes its assignment and
+returns to the orchestrator; it never starts the pipeline recursively.
 
 A stage returns only when the work it started has finished. A report that says a build,
 a test run or another command it launched is still running is not a result: the
 orchestrator relaunches the stage with that instruction and never waits on, inspects or
 completes the leftover work itself. Long commands run in the foreground with a timeout
 from the profile, or are waited on inside the stage until they exit.
+
+Each stage assignment has at most three launch attempts, including the first. A tool
+failure, vague or incomplete report, or abandoned command consumes an attempt. After
+three failed attempts, stop and report what remains unfinished. A new assignment after
+an accepted result starts a new attempt count; resuming the same unfinished assignment
+does not. Attempt counts are separate from the review and QA iteration limits.
 
 A stage stops only processes it started, by the PID it recorded. Killing by name or
 pattern (`pkill -f xcodebuild`, `killall`) also stops the owner's builds and other
@@ -159,6 +166,12 @@ and child issues, or the single atomic issue, are collected. Unresolved question
 Markdown-only fallback in real mode do not satisfy this gate. Resolve them before
 branch creation; in dry-run mode the saved plan is the expected artifact instead.
 
+Record the owner and dependencies of every issue. A `ready-for-human` issue is not
+assigned to the developer. Continue independent agent work, but stop before the first
+stage that depends on the human result. Keep any existing PR and all unfinished issues
+open; report the exact dependency and evidence needed to resume. On resumption, verify
+the human step's result from the tracker or the owner before assigning its dependents.
+
 ## Step 2 — Branch creation
 
 The orchestrator does this itself. It is a git operation, not implementation.
@@ -186,13 +199,21 @@ The orchestrator does this itself. It is a git operation, not implementation.
 Launch `developer` with: the original task text, the issue URLs, the branch name (work
 **only** on it), an instruction to read each issue from the tracker rather than
 guessing, and an instruction to open a PR when the implementation is done. The
+handoff includes only agent-owned issues whose dependencies are satisfied. The
 developer runs the profile's verification command before reporting and puts its
 summary in the PR; bug fixes start from a committed failing test. The PR body carries
-a closing keyword for every issue it implements (`Closes #N`, `Fixes #N` for bugs):
-that is how the tracker gets closed on merge without anyone closing unmerged work
+a closing keyword for every issue it implements (`Closes #N`, `Fixes #N` for bugs),
+never for pending human work or an unfinished epic. That is how the tracker gets closed
+on merge without anyone closing unmerged work
 (see Step 8).
 
 **Transition criterion:** the PR exists and its number is collected.
+
+If a human prerequisite blocks remaining implementation, the developer may commit and
+push independent work, but reports Step 3 as incomplete. The orchestrator stops before
+review and QA; no new PR is required for partial work. After the human result is
+verified, resume development on the same branch and existing PR if one exists. Only
+after the remaining code is complete does Step 4 review the resulting head.
 
 ## Step 4 — Review loop
 
@@ -231,7 +252,15 @@ counter. After the third blocking verdict, do not start another fix/review round
 Launch `qa-tester` with the original task, the issue URLs (for acceptance criteria),
 the developer's implementation summary, and the PR number.
 
-QA verifies every acceptance criterion, hunts for bugs by its own methodology, and
+QA checks completed, agent-owned criteria. If a human dependency is required for an
+acceptance check, report that check as pending, not as a product bug or a green verdict
+for the whole task. The verdict is **blocked by human dependency**, with the issue and
+missing evidence. The orchestrator stops there and resumes QA after the human result
+is verified. If that result requires more code, return to Step 3 and review the new
+head before QA; otherwise resume QA. If the dependency prevents even running the test
+suite, stop before the QA launch; do not report a test verdict that could not be obtained.
+
+QA verifies every ready acceptance criterion, hunts for bugs by its own methodology, and
 files a tracker issue for **every** bug found — including ones it will not fix.
 
 **Mandatory gate:** QA runs the profile's verification command in its fullest variant
@@ -311,11 +340,13 @@ memory note that quoted the very symbol its PR existed to delete.
 
 Leave the tracker accurate without marking unmerged work as done.
 
-Comment on every issue this pipeline created — the epic, the children, and the resolved
-in-scope bugs — referencing the PR: `Implemented in PR #NN; close after merge.`
+Comment on every issue this pipeline completed — including resolved in-scope bugs —
+referencing the PR: `Implemented in PR #NN; close after merge.` Leave human-owned,
+dependent, and unfinished epic issues open with a comment naming the pending work.
 
 Confirm the PR body carries a closing keyword (`Closes #N`, `Fixes #N`) for every
-in-scope issue, and for no other. The tracker then closes them when the owner merges
+completed in-scope issue, and for no other. The tracker then closes them when the owner
+merges
 into the default branch, which is the only moment closing them is right. When the base
 branch is not the default branch the keywords do nothing; say so in the comment so the
 owner closes by hand after merge. No pipeline step runs after the merge.
@@ -349,8 +380,15 @@ stage's changes from pre-existing edits. Commit only this task's intended change
 tracked settings files; never force-add ignored or untracked settings. Review its memory
 changes using Step 7 even when no settings changed, because this stage runs after the
 earlier artifact review; settings and memory are the only paths this stage may add
-after QA, anything else follows the Step 7 rule. Push resulting commits to the existing PR only within the
-task's authorization. Report settings or memory deliberately left local.
+after QA, anything else follows the Step 7 rule. Report settings or memory deliberately
+left local.
+
+Before Step 10, regardless of whether settings housekeeping ran, push every authorized
+artifact commit to the existing PR branch. Confirm the current branch is the PR branch,
+then fetch and verify that its remote tip equals local `HEAD`. A rejected push or
+mismatched tip blocks completion; report the local commits without force-pushing. In
+dry-run or under an explicit no-push constraint, list local commits as unpublished and
+do not claim they are in the PR.
 
 ## Step 10 — Final report
 
@@ -359,6 +397,7 @@ task's authorization. Report settings or memory deliberately left local.
 - Review status, plus any Nits left as optional follow-ups
 - QA status, including the test suite result
 - Artifact commit summary — what was committed, what was deliberately left and why
+- Branch synchronization result — remote tip or unpublished local commits
 - Issue cleanup summary — closed, and left open on purpose with the reason
 - Settings housekeeping result, if Step 9 ran
 - Known limitations and follow-up recommendations
@@ -414,6 +453,7 @@ pipeline on a new project before pointing it at a real repository.
 | 7 | Artifacts listed, not committed |
 | 8 | Skipped — no issues exist |
 | 9 | Audit only: report what *would* change, without editing settings or memory |
+| Before 10 | No push; report local commits as unpublished |
 | 10 | Final report plus an offer to re-run for real |
 
 The mode is fixed at launch and recorded on the first line of the run plan.
