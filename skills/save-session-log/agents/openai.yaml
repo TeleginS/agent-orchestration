@@ -1,0 +1,5 @@
+interface:
+  display_name: "Save Session Log"
+  short_description: "Export the current conversation to docs/ai-logs on request"
+policy:
+  allow_implicit_invocation: false

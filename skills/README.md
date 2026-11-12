@@ -1,7 +1,8 @@
-# Canonical pipeline skills
+# Canonical skills
 
-These seven skills are the single source of truth for role behavior: six pipeline
-stages plus the standalone `production-triage`. The
+Seven role skills are the single source of truth for role behavior: six pipeline
+stages plus the standalone `production-triage`. `save-session-log` is a separate,
+manual utility for Claude Code, Codex, and DeepSeek Harness. The
 [pipeline](../PIPELINE.md) defines stage order, gates, loops, modes, and housekeeping;
 skills carry each role's engineering checks and report contract.
 
@@ -14,12 +15,15 @@ skills carry each role's engineering checks and report contract.
 | [qa-tester](qa-tester/SKILL.md) | Run tests, verify criteria, classify and report bugs |
 | [settings-optimizer](settings-optimizer/SKILL.md) | Optional permission housekeeping or a standalone audit |
 | [production-triage](production-triage/SKILL.md) | Standalone: file recent production errors as `needs-triage` issues |
+| [save-session-log](save-session-log/SKILL.md) | Standalone: export a Claude Code, Codex, or DeepSeek Harness transcript on request |
 
 Canonical frontmatter contains only `name` and `description`. Runtime-specific
 discovery, model choices, and subagent launching live in the
 [adapters](../adapters/README.md), including Claude wrappers that configure foreground
 forked stages. Loading a canonical skill alone does not select a model or create an
-independent agent. Historical [agents/](../agents/README.md) entries are compatibility
+independent agent. The one exception to frontmatter-only metadata is
+`save-session-log/agents/openai.yaml`, which Codex reads to make that skill
+explicit-only; other hosts ignore it. Historical [agents/](../agents/README.md) entries are compatibility
 pointers to these files.
 
 Each stage receives the original task, an absolute active profile path, design

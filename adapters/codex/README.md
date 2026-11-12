@@ -34,6 +34,26 @@ The optional [`environments/environment.toml`](environments/environment.toml) is
 setup template. Merge needed setup commands into the project's existing environment;
 do not copy the entire adapter over `.codex/` and overwrite local configuration.
 
+### Manual session logs
+
+`save-session-log` is a utility, not a role, so it has no TOML loader and runs in the
+main conversation. Link the canonical skill next to the role skills, preserving an
+existing entry with the same name:
+
+```bash
+if [ -e .agents/skills/save-session-log ] || [ -L .agents/skills/save-session-log ]; then
+  printf '%s\n' 'Preserving existing skill: save-session-log'
+else
+  ln -s ../../agent-orchestration/skills/save-session-log .agents/skills/save-session-log
+fi
+```
+
+Its `agents/openai.yaml` sets `allow_implicit_invocation: false`, so Codex runs it only
+when invoked as `$save-session-log [slug]`. The converter reads
+`$CODEX_HOME/sessions/` (default `~/.codex/sessions/`), finds the current thread by
+`CODEX_THREAD_ID` when the host sets it, and otherwise uses the newest user thread
+whose working directory is the project root. It writes `docs/ai-logs/` by default.
+
 ## Run
 
 ```text

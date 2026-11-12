@@ -9,6 +9,7 @@ lives in [`../PIPELINE.md`](../PIPELINE.md).
 |---|---|---|
 | [`claude-code/`](claude-code/) | `/orchestrator` | Native forked skills, with model metadata in thin Claude wrappers |
 | [`codex/`](codex/) | `$orchestrator` | Thin TOML loaders when supported, or explicit launch configuration |
+| [`dsh/`](dsh/) | Load the canonical skill | Not adapted yet; only the standalone manual log utility |
 | [`generic-harness/`](generic-harness/) | Load the orchestrator skill | Assemble a skill and its handoff into a supported subagent launch |
 
 Skills and subagents serve different purposes: loading a procedure does not create an
@@ -47,6 +48,10 @@ frontmatter into the canonical skills. Resolve skill symlinks to find the physic
 library root, and use absolute paths for the target repository, profile, runtime adapter,
 skill and design artifacts in every handoff. A vendored library directory is not the
 target application's repository root.
+
+The standalone `save-session-log` utility is not a role, so the shared installation
+above does not link it. Install it separately from the host's manual-session-logs
+section. It is never a pipeline step and never runs before commits or pull requests.
 
 All adapters use `<project-root>/.agents/memory/<role>/`. The canonical skills load
 [`../memory/RULES.md`](../memory/RULES.md) and the role's index explicitly, respecting

@@ -30,6 +30,22 @@ Review any same-name skill that was preserved before using it. Do not replace un
 skills. If the library has another location, provide its absolute physical root in the
 invocation; wrappers default to `<project-root>/agent-orchestration`.
 
+### Manual session logs
+
+`save-session-log` is a utility, not a role. Its wrapper runs inline in the main
+conversation (no `context: fork`) so that `${CLAUDE_SESSION_ID}` names the session being
+exported, and sets `disable-model-invocation: true` so only the user can start it.
+Install it separately from the forked roles, preserving an existing skill with the
+same name:
+
+```bash
+if [ -e .claude/skills/save-session-log ] || [ -L .claude/skills/save-session-log ]; then
+  printf '%s\n' 'Preserving existing skill: save-session-log'
+else
+  cp -R agent-orchestration/adapters/claude-code/skills/save-session-log .claude/skills/save-session-log
+fi
+```
+
 ### Migrate an existing installation
 
 An existing `.claude/skills -> ../.agents/skills` link exposes shared canonical skills.
@@ -67,6 +83,10 @@ self-test first, because a broken `PreToolUse` hook blocks every later tool call
 
 `production-triage` runs on its own (`/production-triage`), not as a pipeline step; it
 needs the error-source tool named in the profile (for example, an MCP server).
+
+Run `/save-session-log [slug]` only when a log is requested. It reads Claude's
+local transcript and writes `docs/ai-logs/` by default. The pipeline does not
+invoke it automatically.
 
 The main conversation can resolve product questions with the user before delegating.
 It invokes stage skills through the native Skill tool and supplies the complete handoff

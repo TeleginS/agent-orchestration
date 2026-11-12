@@ -85,10 +85,10 @@ remote — and treat your first live run as a shakedown.
 - **[PIPELINE.md](PIPELINE.md)** — the runbook: every step, its transition criterion,
   the strict rules
 - **[PIPELINE-GRAPH.md](PIPELINE-GRAPH.md)** — the same thing as a state diagram
-- **[skills/](skills/)** — the six pipeline skills and the standalone `production-triage`
+- **[skills/](skills/)** — the six pipeline skills, standalone `production-triage`, and the manual `save-session-log` utility
 - **[gates/](gates/)** — hooks that enforce the owner's merge and release gates
 - **[profiles/](profiles/)** — the one file you write to adopt this
-- **[adapters/](adapters/)** — Claude Code, Codex, generic harness
+- **[adapters/](adapters/)** — Claude Code, Codex, generic harness, and the DeepSeek Harness log utility
 
 ## The idea
 
@@ -191,6 +191,12 @@ link with a real directory.
 
 Codex: copy `agent-orchestration/adapters/codex/agents/<role>.toml` into `.codex/agents/`
 for the five stage roles instead; see [adapters/codex/README.md](adapters/codex/README.md#install).
+
+For manual transcript exports, install `save-session-log` separately:
+[Claude Code wrapper](adapters/claude-code/README.md#manual-session-logs),
+[Codex skill link](adapters/codex/README.md#manual-session-logs), or
+[DeepSeek Harness skill link](adapters/dsh/README.md#manual-session-logs). It is not
+a pipeline stage and does not run before commits or PRs.
 
 **4. Install the gate hooks and their configuration.**
 
